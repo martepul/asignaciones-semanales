@@ -1,0 +1,330 @@
+:root {
+    /* Paleta estilo Editor Light (Inspirado en GitHub Light/Atom) */
+    --bg: #FFFFFF;
+    --card-bg: #F6F8FA;
+    --card-accent: #E1E4E8;
+    --text-main: #24292E;
+    --text-muted: #6A737D;
+    --primary: #2d4561;
+    /* Azul de funciones */
+    --accent: #22863A;
+    /* Verde de strings */
+    --border: #D1D5DA;
+    --border-th: #ADB5BD;
+    --shadow-strong: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --code-font: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+[data-theme="dark"] {
+    /* Paleta estilo One Dark / Monokai */
+    --bg: #1E1E1E;
+    --card-bg: #252526;
+    --card-accent: #333333;
+    --text-main: #D4D4D4;
+    --text-muted: #858585;
+    --primary: #569CD6;
+    /* Keywords */
+    --accent: #CE9178;
+    /* Strings */
+    --border: #3E3E42;
+    --shadow-strong: none;
+}
+
+body {
+    background-color: var(--bg);
+    color: var(--text-main);
+    font-family: var(--code-font);
+    margin: 0;
+    padding: 20px;
+    line-height: 1.5;
+}
+
+/* --- ESTRUCTURA PRINCIPAL --- */
+
+.header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    text-transform: lowercase;
+    /* Estilo terminal */
+}
+
+.header-flex::before {
+    content: "> ";
+    color: var(--primary);
+    font-weight: bold;
+}
+
+.main-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.content-area {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar {
+    flex: 0 0 320px;
+    background: var(--card-bg);
+    padding: 20px;
+    border: 1px solid var(--border) !important;
+    border-radius: 4px;
+    /* Bordes más rectos estilo IDE */
+    max-height: 90vh;
+    overflow-y: auto;
+    position: sticky;
+    top: 20px;
+    box-shadow: var(--shadow-strong);
+}
+
+#selectorDias {
+    padding: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+#selectorDias label {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 0.8rem;
+    background: var(--card-accent);
+}
+
+/* --- ESTILOS DE COMPONENTES --- */
+
+.table-container {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+th,
+td {
+    padding: 10px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    /* Rejilla de editor */
+}
+
+th {
+    background: var(--card-accent);
+    font-size: 0.75rem;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.th-pdf {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 0.8rem;
+    background: var(--card-accent);
+}
+
+/* Inputs y Selects */
+.sidebar h3 {
+    font-size: 0.85rem;
+    margin: 20px 0 10px 0;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+input[type="text"],
+input[type="date"],
+select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--accent);
+    /* Color de "valor" */
+    font-family: var(--code-font);
+    box-sizing: border-box;
+    outline: none;
+}
+
+input:focus {
+    border-color: var(--primary);
+}
+
+/* Lista de participantes */
+.participant-list {
+    list-style: none;
+    padding: 0;
+}
+
+.participant-list li {
+    padding: 6px 10px;
+    border-left: 3px solid var(--primary);
+    /* Estilo línea activa */
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card-accent);
+    font-size: 0.85rem;
+}
+
+li div {
+    margin-right: 5px;
+}
+
+li span {
+    margin-left: 5px;
+}
+
+li button {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
+}
+
+li button:hover {
+    color: var(--primary);
+}
+
+/* Botones */
+button {
+    font-family: var(--code-font);
+    padding: 8px 15px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: var(--card-accent);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+button:hover {
+    filter: brightness(1.2);
+    border-color: var(--primary);
+}
+
+.btn-export {
+    margin-top: 20px;
+    width: 100%;
+    background: var(--primary);
+    color: #fff;
+    font-weight: bold;
+    border: none;
+    text-transform: uppercase;
+}
+
+.btn-tool {
+    width: 35px;
+    height: 35px;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(2px);
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    color: var(--text-main);
+    padding: 25px;
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Responsividad */
+@media (max-width: 1024px) {
+    .main-layout {
+        flex-direction: column-reverse;
+    }
+
+    .sidebar {
+        width: 100%;
+        flex: none;
+        position: static;
+    }
+}
+
+/* --- LÓGICA DE OCULTACIÓN (Añadir al final del CSS) --- */
+
+/* --- LÓGICA DE TRANSICIÓN --- */
+
+.main-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+    /* Efecto suave */
+}
+
+.sidebar {
+    flex: 0 0 320px;
+    width: 320px;
+    /* ... tus estilos actuales ... */
+    transition: all 0.3s ease;
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Estado oculto con animación */
+.main-layout.sidebar-hidden {
+    gap: 0;
+}
+
+.main-layout.sidebar-hidden .sidebar {
+    flex: 0 0 0;
+    width: 0;
+    padding: 0;
+    margin: 0;
+    border: none !important;
+    opacity: 0;
+    visibility: hidden;
+    overflow: hidden;
+}
+
+.main-layout.sidebar-hidden .content-area {
+    flex: 1;
+    width: 100%;
+}
+
+/* Estilo para el botón activo */
+.sidebar-hidden-active {
+    background: var(--primary) !important;
+    color: #ffffff !important;
+}
