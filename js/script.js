@@ -4,7 +4,13 @@ let bloqueados = JSON.parse(localStorage.getItem('bloqueados_v1')) || {};
 let asignaciones = {};
 let columnasElegidas = []; // Guarda objetos: {id, label, cantidad}
 
-window.addEventListener('load', () => {
+document.addEventListener('DOMContentLoaded', () => {
+    applyTheme(); // Aplicar tema oscuro/claro
+
+    const themeButton = document.getElementById('btn-theme');
+    if (themeButton) {
+        themeButton.addEventListener('click', toggleTheme);
+    }
     // Cargar título guardado
     const savedTitle = localStorage.getItem('pdfTitle');
     const saveTitlePref = localStorage.getItem('savePdfTitlePref') === 'true';
@@ -82,9 +88,33 @@ function manejarSeleccionColumna(checkbox) {
 }
 
 function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme');
-    document.documentElement.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+    const current = document.documentElement.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
 }
+
+// Función para aplicar el tema al cargar la página
+function applyTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    } else {
+        // Si no hay tema guardado, usar la preferencia del sistema
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    }
+}
+
+
+
+// Opcional: Escuchar cambios en la preferencia del sistema
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    // Solo cambiar si no hay un tema guardado manualmente
+    if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+    }
+});
 
 function toggleSidebar() {
     const layout = document.querySelector('.main-layout');
