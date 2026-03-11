@@ -456,7 +456,7 @@ function exportarPDF() {
     }
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'mm', 'a4');
+    const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
 
     // 1. Configuración de Roles y Encabezados
@@ -656,3 +656,4 @@ function guardarSeleccionDias() {
 document.getElementById('saveDias').addEventListener('change', guardarSeleccionDias);
 
 actualizarTodo();
+
