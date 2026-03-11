@@ -499,13 +499,13 @@ function exportarPDF() {
 
     // 3. Dibujar Encabezado Principal (Logo y Título General)
     // Texto "JW.ORG" a la izquierda
-    doc.setFontSize(18);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     const pdfTitle = document.getElementById('pdfTitle').value || 'Cong. Simón Bolívar';
     doc.text(pdfTitle, 12, currentY);
 
     // Título Principal Centrado
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.text("ASIGNACIONES SEMANALES", pageWidth / 2, currentY, { align: 'center' });
 
     // Línea inferior que ocupa todo el ancho (de margen a margen)
@@ -656,4 +656,5 @@ function guardarSeleccionDias() {
 document.getElementById('saveDias').addEventListener('change', guardarSeleccionDias);
 
 actualizarTodo();
+
 
