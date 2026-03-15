@@ -464,13 +464,13 @@ function exportarPDF() {
     const head = [];
     const headerRow = [];
 
-    headerRow.push({ content: 'Fecha / Día', styles: { halign: 'center', valign: 'middle' } });
+    headerRow.push({ content: 'Día', styles: { halign: 'left' } });
 
     columnasElegidas.forEach(col => {
         headerRow.push({
             content: col.label,
             colSpan: col.cantidad,
-            styles: { halign: 'center' }
+            styles: { halign: 'left' }
         });
     });
     head.push(headerRow);
@@ -484,35 +484,39 @@ function exportarPDF() {
         meses[nombreMes].push(f);
     });
 
-    let currentY = 20; // Espacio inicial para el logo y título
+    let currentY = 20;
 
-    // 3. Dibujar Encabezado Principal (Logo y Título General)
-    doc.setFontSize(12);
+    // 3. Dibujar Encabezado Principal Minimalista
+    const pdfTitle = document.getElementById('pdfTitle').value || 'Asignaciones';
+    
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(40, 40, 40); // Gris muy oscuro en lugar de negro
+    doc.setFontSize(10);
+    doc.text(pdfTitle.toUpperCase(), 15, currentY);
+
     doc.setFont("helvetica", "bold");
-    const pdfTitle = document.getElementById('pdfTitle').value || 'Cong. Simón Bolívar';
-    doc.text(pdfTitle, 12, currentY);
+    doc.setFontSize(14);
+    doc.text("Asignaciones semanales", 15, currentY + 6);
 
-    // Título Principal Centrado
-    doc.setFontSize(12);
-    doc.text("ASIGNACIONES SEMANALES", pageWidth / 2, currentY, { align: 'center' });
+    // Línea separadora sutil
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.line(15, currentY + 10, pageWidth - 15, currentY + 10);
 
-    // Línea inferior que ocupa todo el ancho (de margen a margen)
-    doc.setLineWidth(0.5);
-    doc.line(10, currentY + 4, pageWidth - 10, currentY + 4);
-
-    currentY += 15; // Bajar para empezar las tablas
+    currentY += 20;
 
     // 4. Iterar sobre cada mes
     Object.keys(meses).forEach((nombreMes) => {
-        // Título del Mes (Asignaciones del mes específico)
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        const tituloMes = `Mes: ${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)}`;
+        // Título del Mes
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100, 100, 100); // Gris medio para el mes
+        const tituloMes = nombreMes.toUpperCase();
         doc.text(tituloMes, 15, currentY);
 
         const bodyMes = meses[nombreMes].map(f => {
             const id = f.toISOString().split('T')[0];
-            const dia = f.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit' });
+            const dia = f.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit' }).replace('.', ''); // Quita el punto del día
             const fila = [dia];
             rolesPlano.forEach(rol => {
                 fila.push(manuales[id]?.[rol] || asignaciones[id]?.[rol] || "-");
@@ -520,41 +524,52 @@ function exportarPDF() {
             return fila;
         });
 
-        // 5. Tabla en Blanco y Negro
+        // 5. Tabla Minimalista
         doc.autoTable({
             head: head,
             body: bodyMes,
             startY: currentY + 4,
-            theme: 'grid',
+            theme: 'plain', // Elimina toda la cuadrícula predeterminada
             styles: {
-                // Si hay más de 5 columnas, baja el tamaño de la letra a 7; si no, lo deja en 8.
-                fontSize: rolesPlano.length > 5 ? 7 : 8.5,
-                cellPadding: 1.5, // Reduce el espacio vacío dentro de las celdas para dar más lugar al texto
-                halign: 'center',
+                fontSize: rolesPlano.length > 5 ? 7.5 : 8.5,
+                cellPadding: 3, // Más espacio interior (aire)
+                halign: 'left',
                 valign: 'middle',
-                textColor: 0,
-                lineColor: 0,
-                lineWidth: 0.1,
-                overflow: 'linebreak' // Permite que los nombres largos bajen a la siguiente línea
+                textColor: [80, 80, 80], // Texto en gris oscuro suave
+                overflow: 'linebreak'
             },
             headStyles: {
-                fillColor: 255,
-                textColor: 0,
+                fillColor: false,
+                textColor: [20, 20, 20], // Encabezados casi negros
                 fontStyle: 'bold',
-                lineWidth: 0.2,
-                // Ajuste dinámico también para los encabezados
                 fontSize: rolesPlano.length > 5 ? 8 : 9,
+                cellPadding: { top: 2, bottom: 4, left: 3, right: 3 }
             },
-            margin: { left: 10, right: 10 },
+            alternateRowStyles: {
+                fillColor: [248, 248, 248] // Un sombreado extremadamente sutil para guiar la vista sin líneas
+            },
+            margin: { left: 15, right: 15 },
+            // Dibuja una línea sutil solo debajo de los encabezados
+            didDrawPage: function(data) {
+                // No es necesario en esta versión, el diseño limpio se sostiene solo
+            },
+            willDrawCell: function(data) {
+                // Agrega una línea sutil debajo del encabezado
+                if (data.section === 'head') {
+                    doc.setDrawColor(220, 220, 220);
+                    doc.setLineWidth(0.1);
+                    doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+                }
+            },
             didDrawPage: (data) => {
                 currentY = data.cursor.y + 15;
             }
         });
 
-        currentY = doc.lastAutoTable.finalY + 12;
+        currentY = doc.lastAutoTable.finalY + 15;
     });
 
-    doc.save(`Asignaciones_${new Date().toLocaleDateString()}.pdf`);
+    doc.save(`Asignaciones_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`);
 }
 
 function abrirModalLimpiezaManual() {
