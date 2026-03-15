@@ -2,7 +2,7 @@ let participantes = JSON.parse(localStorage.getItem('micro_participantes')) || [
 let manuales = JSON.parse(localStorage.getItem('manuales_v3')) || {};
 let bloqueados = JSON.parse(localStorage.getItem('bloqueados_v1')) || {};
 let asignaciones = {};
-let columnasElegidas = []; // Guarda objetos: {id, label, cantidad}
+let columnasElegidas = JSON.parse(localStorage.getItem('columnasElegidas_v1')) || []; // Guarda objetos: {id, label, cantidad}
 
 document.addEventListener('DOMContentLoaded', () => {
     applyTheme(); // Aplicar tema oscuro/claro
@@ -13,31 +13,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Cargar título guardado
     const savedTitle = localStorage.getItem('pdfTitle');
-    const saveTitlePref = localStorage.getItem('savePdfTitlePref') === 'true';
-
     const titleInput = document.getElementById('pdfTitle');
-    const saveTitleCheckbox = document.getElementById('savePdfTitle');
-
-    if (saveTitlePref && savedTitle) {
+    if (savedTitle) {
         titleInput.value = savedTitle;
     }
-    saveTitleCheckbox.checked = saveTitlePref;
+    titleInput.addEventListener('input', () => {
+        localStorage.setItem('pdfTitle', titleInput.value);
+    });
 
     // Cargar selección de días guardada
-    const saveDiasPref = localStorage.getItem('saveDiasPref') === 'true';
-    const saveDiasCheckbox = document.getElementById('saveDias');
-    saveDiasCheckbox.checked = saveDiasPref;
-
     const diasCheckboxes = document.querySelectorAll('.dia-check');
-
-    if (saveDiasPref) {
-        const savedDias = JSON.parse(localStorage.getItem('savedDias')) || [];
+    const savedDias = JSON.parse(localStorage.getItem('savedDias')) || [];
+    if(savedDias.length > 0){
         diasCheckboxes.forEach(check => {
             check.checked = savedDias.includes(parseInt(check.value));
-        });
-    } else {
-        diasCheckboxes.forEach(check => {
-            check.checked = false; // Desmarcar solo si no se guardó la preferencia
         });
     }
 
@@ -55,8 +44,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // EVENTO CLAVE: Orden de columnas y cantidades
     document.querySelectorAll('.col-check').forEach(check => {
-        // Forzamos que estén desmarcados al recargar la página
-        check.checked = false;
+        const rol = check.value;
+        const colGuardada = columnasElegidas.find(c => c.id === rol);
+
+        if (colGuardada) {
+            check.checked = true;
+            const numInput = document.querySelector(`.col-num[data-rol="${rol}"]`);
+            if (numInput) {
+                numInput.value = colGuardada.cantidad;
+            }
+        } else {
+            check.checked = false;
+        }
 
         check.addEventListener('change', function () {
             manejarSeleccionColumna(this);
@@ -381,6 +380,7 @@ function actualizarEncabezado() {
 }
 
 function actualizarTodo() {
+    localStorage.setItem('columnasElegidas_v1', JSON.stringify(columnasElegidas));
     localStorage.setItem('micro_participantes', JSON.stringify(participantes));
 
     // Lista de participantes en sidebar
@@ -444,17 +444,6 @@ function actualizarTodo() {
 }
 
 function exportarPDF() {
-    const titleInput = document.getElementById('pdfTitle');
-    const saveTitleCheckbox = document.getElementById('savePdfTitle');
-
-    if (saveTitleCheckbox.checked) {
-        localStorage.setItem('pdfTitle', titleInput.value);
-        localStorage.setItem('savePdfTitlePref', 'true');
-    } else {
-        localStorage.removeItem('pdfTitle');
-        localStorage.removeItem('savePdfTitlePref');
-    }
-
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -498,7 +487,6 @@ function exportarPDF() {
     let currentY = 20; // Espacio inicial para el logo y título
 
     // 3. Dibujar Encabezado Principal (Logo y Título General)
-    // Texto "JW.ORG" a la izquierda
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     const pdfTitle = document.getElementById('pdfTitle').value || 'Cong. Simón Bolívar';
@@ -539,19 +527,23 @@ function exportarPDF() {
             startY: currentY + 4,
             theme: 'grid',
             styles: {
-                fontSize: 8,
+                // Si hay más de 5 columnas, baja el tamaño de la letra a 7; si no, lo deja en 8.
+                fontSize: rolesPlano.length > 5 ? 7 : 8.5,
+                cellPadding: 1.5, // Reduce el espacio vacío dentro de las celdas para dar más lugar al texto
                 halign: 'center',
                 valign: 'middle',
                 textColor: 0,
                 lineColor: 0,
                 lineWidth: 0.1,
+                overflow: 'linebreak' // Permite que los nombres largos bajen a la siguiente línea
             },
             headStyles: {
                 fillColor: 255,
                 textColor: 0,
                 fontStyle: 'bold',
                 lineWidth: 0.2,
-                fontSize: 10,
+                // Ajuste dinámico también para los encabezados
+                fontSize: rolesPlano.length > 5 ? 8 : 9,
             },
             margin: { left: 10, right: 10 },
             didDrawPage: (data) => {
@@ -642,19 +634,8 @@ function ejecutarLimpiezaManualModal() {
 }
 
 function guardarSeleccionDias() {
-    const saveDiasCheckbox = document.getElementById('saveDias');
-    if (saveDiasCheckbox.checked) {
-        const diasSeleccionados = obtenerDiasSeleccionados();
-        localStorage.setItem('savedDias', JSON.stringify(diasSeleccionados));
-        localStorage.setItem('saveDiasPref', 'true');
-    } else {
-        localStorage.removeItem('savedDias');
-        localStorage.removeItem('saveDiasPref');
-    }
+    const diasSeleccionados = obtenerDiasSeleccionados();
+    localStorage.setItem('savedDias', JSON.stringify(diasSeleccionados));
 }
 
-document.getElementById('saveDias').addEventListener('change', guardarSeleccionDias);
-
 actualizarTodo();
-
-
