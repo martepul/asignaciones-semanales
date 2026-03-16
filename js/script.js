@@ -1,4 +1,21 @@
-let participantes = JSON.parse(localStorage.getItem('micro_participantes')) || [];
+// Objeto para manejar las listas de participantes
+let listas = JSON.parse(localStorage.getItem('listas_participantes_v1')) || {
+    presidencia: ["Juan", "Pedro", "Maria"],
+    camara: [],
+    audio_video: [],
+    plataforma: [],
+    general: [] // Lista para roles no especificados
+};
+
+// Migración: Si la lista general está vacía y existen participantes antiguos, moverlos.
+const participantesAntiguos = JSON.parse(localStorage.getItem('micro_participantes'));
+if (listas.general.length === 0 && participantesAntiguos && participantesAntiguos.length > 0) {
+    listas.general = participantesAntiguos;
+    localStorage.removeItem('micro_participantes'); // Limpiar el almacenamiento antiguo
+}
+
+let participantes = listas.general; // Para mantener la compatibilidad con el resto del script que usa 'participantes'
+
 let manuales = JSON.parse(localStorage.getItem('manuales_v3')) || {};
 let bloqueados = JSON.parse(localStorage.getItem('bloqueados_v1')) || {};
 let asignaciones = {};
@@ -140,22 +157,47 @@ function toggleSidebar() {
     }, 300);
 }
 
+function actualizarVistaParticipantes() {
+    const selector = document.getElementById('listaSelector');
+    const listaSeleccionada = selector.value;
+    const listaActual = listas[listaSeleccionada] || [];
+
+    const listaUL = document.getElementById('listaParticipantes');
+    listaUL.innerHTML = listaActual.map((p, idx) => `
+        <li style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border)">
+            <span>${p}</span>
+            <div>
+                <button onclick="editarParticipante(${idx})">✎</button>
+                <button onclick="eliminarParticipante(${idx})">×</button>
+            </div>
+        </li>`).join('');
+}
+
 function agregarParticipante() {
     const input = document.getElementById('nuevoNombre');
     const nombre = input.value.trim();
-    if (nombre && !participantes.includes(nombre)) {
-        participantes.push(nombre);
+    const listaSeleccionada = document.getElementById('listaSelector').value;
+    
+    if (nombre && !listas[listaSeleccionada].includes(nombre)) {
+        listas[listaSeleccionada].push(nombre);
         input.value = '';
         actualizarTodo();
     }
 }
 
 function editarParticipante(index) {
-    const nombreAntiguo = participantes[index];
+    const listaSeleccionada = document.getElementById('listaSelector').value;
+    const listaActual = listas[listaSeleccionada];
+    const nombreAntiguo = listaActual[index];
+
     const nuevoNombre = prompt("Editar nombre:", nombreAntiguo);
     if (nuevoNombre && nuevoNombre.trim() !== "" && nuevoNombre !== nombreAntiguo) {
         const nombreLimpio = nuevoNombre.trim();
-        participantes[index] = nombreLimpio;
+        
+        // Actualizar en la lista específica
+        listaActual[index] = nombreLimpio;
+
+        // Actualizar en todas las asignaciones manuales y automáticas
         Object.keys(manuales).forEach(fechaId => {
             Object.keys(manuales[fechaId]).forEach(rol => {
                 if (manuales[fechaId][rol] === nombreAntiguo) manuales[fechaId][rol] = nombreLimpio;
@@ -166,14 +208,16 @@ function editarParticipante(index) {
                 if (asignaciones[fechaId][rol] === nombreAntiguo) asignaciones[fechaId][rol] = nombreLimpio;
             });
         });
+
         localStorage.setItem('manuales_v3', JSON.stringify(manuales));
         actualizarTodo();
     }
 }
 
 function eliminarParticipante(index) {
-    if (confirm("¿Quitar de la lista?")) {
-        participantes.splice(index, 1);
+    const listaSeleccionada = document.getElementById('listaSelector').value;
+    if (confirm("¿Quitar de la lista '" + listaSeleccionada + "'?")) {
+        listas[listaSeleccionada].splice(index, 1);
         actualizarTodo();
     }
 }
@@ -381,23 +425,13 @@ function actualizarEncabezado() {
 
 function actualizarTodo() {
     localStorage.setItem('columnasElegidas_v1', JSON.stringify(columnasElegidas));
-    localStorage.setItem('micro_participantes', JSON.stringify(participantes));
+    localStorage.setItem('listas_participantes_v1', JSON.stringify(listas));
 
-    // Lista de participantes en sidebar
-    const listaUL = document.getElementById('listaParticipantes');
-    listaUL.innerHTML = participantes.map((p, idx) => `
-        <li style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border)">
-            <span>${p}</span>
-            <div>
-                <button onclick="editarParticipante(${idx})">✎</button>
-                <button onclick="eliminarParticipante(${idx})">×</button>
-            </div>
-        </li>`).join('');
-
+    actualizarVistaParticipantes(); // Llama a la nueva función para la lista del sidebar
+    
     actualizarBotonesDeLimpieza();
     actualizarEncabezado();
 
-    // Crear lista plana de roles (ej: plataforma_0, audio_video_0, audio_video_1...)
     let rolesPlano = [];
     columnasElegidas.forEach(col => {
         for (let i = 0; i < col.cantidad; i++) {
@@ -422,11 +456,16 @@ function actualizarTodo() {
 
         let celdas = rolesPlano.map(rol => {
             const valor = manuales[id]?.[rol] || asignaciones[id]?.[rol] || "";
+            const rolBase = rol.split('_')[0]; // ej. 'presidencia'
+
+            // Usar la lista específica si existe, sino la general
+            const listaParaRol = listas[rolBase] && listas[rolBase].length > 0 ? listas[rolBase] : listas.general;
+
             return `<td>
                 <select class="${manuales[id]?.[rol] ? 'manual-selected' : ''}" 
                         onchange="guardarManual('${id}', this.value, '${rol}')" ${estaBloqueado ? 'disabled' : ''}>
                     <option value="">--</option>
-                    ${participantes.map(p => `<option value="${p}" ${valor === p ? 'selected' : ''}>${p}</option>`).join('')}
+                    ${listaParaRol.map(p => `<option value="${p}" ${valor === p ? 'selected' : ''}>${p}</option>`).join('')}
                 </select>
             </td>`;
         }).join('');
