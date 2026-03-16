@@ -76,6 +76,22 @@
 
                     <div class="col-control"
                         style="display: flex; align-items: center; justify-content: space-between;">
+                        <label><input type="checkbox" class="col-check" value="presidencia" data-label="Presidencia">
+                            Presidencia</label>
+                        <input type="number" class="col-num" data-rol="presidencia" value="1" min="1" max="5"
+                            style="width: 40px;">
+                    </div>
+
+                    <div class="col-control"
+                        style="display: flex; align-items: center; justify-content: space-between;">
+                        <label><input type="checkbox" class="col-check" value="camara" data-label="Cámara">
+                            Cámara</label>
+                        <input type="number" class="col-num" data-rol="camara" value="1" min="1" max="5"
+                            style="width: 40px;">
+                    </div>
+
+                    <div class="col-control"
+                        style="display: flex; align-items: center; justify-content: space-between;">
                         <label><input type="checkbox" class="col-check" value="audio_video" data-label="Audio y Video">
                             Audio y Video</label>
                         <input type="number" class="col-num" data-rol="audio_video" value="1" min="1" max="5"
@@ -167,6 +183,13 @@
                 </div>
                 <div>
                     <h3>Lista de Participantes</h3>
+                    <select id="listaSelector" onchange="actualizarVistaParticipantes()" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+                        <option value="general">General</option>
+                        <option value="presidencia">Presidencia</option>
+                        <option value="plataforma">Plataforma</option>
+                        <option value="audio_video">Audio y Video</option>
+                        <option value="camara">Cámara</option>
+                    </select>
                     <div id="idcontenedorFp">
                         <input type="text" id="nuevoNombre" placeholder="Escribe un nombre..."
                             onkeypress="if(event.key==='Enter') agregarParticipante()">
