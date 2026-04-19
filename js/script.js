@@ -1,47 +1,71 @@
-// Objeto para manejar las listas de participantes
-let listas = JSON.parse(localStorage.getItem('listas_participantes_v1')) || {
-    presidencia: ["Juan", "Pedro", "Maria"],
-    camara: [],
-    audio_video: [],
-    plataforma: [],
-    general: [] // Lista para roles no especificados
-};
+// --- ESTADO Y PERSISTENCIA ---
+// Nueva variable para controlar la visibilidad de los detalles del discurso
+let incluirExtrasSabado = localStorage.getItem('incluirExtrasSabado') !== 'false';
 
-// Migración: Si la lista general está vacía y existen participantes antiguos, moverlos.
-const participantesAntiguos = JSON.parse(localStorage.getItem('micro_participantes'));
-if (listas.general.length === 0 && participantesAntiguos && participantesAntiguos.length > 0) {
-    listas.general = participantesAntiguos;
-    localStorage.removeItem('micro_participantes'); // Limpiar el almacenamiento antiguo
+let configEtiquetas = JSON.parse(localStorage.getItem('configEtiquetas_v2')) || [
+    { id: "P", desc: "Presidencia", columnas: ["presidencia", "plataforma"] },
+    { id: "A", desc: "Acomodador", columnas: ["Entrada", "Auditorio", "Estacionamiento"] },
+    { id: "L", desc: "Lector", columnas: ["lector"] },
+    { id: "AV", desc: "Audio/Video", columnas: ["audio_video", "camara"] }
+];
+
+let participantesData = JSON.parse(localStorage.getItem('participantesData_v2'));
+
+// Migración de datos antiguos (Listas separadas -> Lista única con etiquetas)
+if (!participantesData) {
+    participantesData = [];
+    let listasAntiguas = JSON.parse(localStorage.getItem('listas_participantes_v1'));
+
+    if (listasAntiguas) {
+        let mapNombres = {};
+        Object.keys(listasAntiguas).forEach(listaName => {
+            listasAntiguas[listaName].forEach(nombre => {
+                if (!mapNombres[nombre]) mapNombres[nombre] = new Set();
+                if (listaName === 'presidencia' || listaName === 'plataforma') mapNombres[nombre].add('P');
+                if (listaName === 'audio_video' || listaName === 'camara') mapNombres[nombre].add('AV');
+            });
+        });
+
+        Object.keys(mapNombres).forEach(nombre => {
+            participantesData.push({ nombre: nombre, tags: Array.from(mapNombres[nombre]) });
+        });
+
+        if (listasAntiguas.general) {
+            listasAntiguas.general.forEach(nombre => {
+                if (!participantesData.find(p => p.nombre === nombre)) {
+                    participantesData.push({ nombre: nombre, tags: [] });
+                }
+            });
+        }
+    }
+    localStorage.setItem('participantesData_v2', JSON.stringify(participantesData));
 }
-
-let participantes = listas.general; // Para mantener la compatibilidad con el resto del script que usa 'participantes'
 
 let manuales = JSON.parse(localStorage.getItem('manuales_v3')) || {};
 let bloqueados = JSON.parse(localStorage.getItem('bloqueados_v1')) || {};
+let sabadoData = JSON.parse(localStorage.getItem('sabadoData_v1')) || {};
 let asignaciones = {};
-let columnasElegidas = JSON.parse(localStorage.getItem('columnasElegidas_v1')) || []; // Guarda objetos: {id, label, cantidad}
+let columnasElegidas = JSON.parse(localStorage.getItem('columnasElegidas_v1')) || [];
+let listaBosquejos = JSON.parse(localStorage.getItem('listaBosquejos_v1')) || [];
 
 document.addEventListener('DOMContentLoaded', () => {
-    applyTheme(); // Aplicar tema oscuro/claro
+    applyTheme();
+
+    // Sincronizar checkbox de extras
+    const checkExtras = document.getElementById('checkIncluirExtras');
+    if (checkExtras) checkExtras.checked = incluirExtrasSabado;
 
     const themeButton = document.getElementById('btn-theme');
-    if (themeButton) {
-        themeButton.addEventListener('click', toggleTheme);
-    }
-    // Cargar título guardado
+    if (themeButton) themeButton.addEventListener('click', toggleTheme);
+
     const savedTitle = localStorage.getItem('pdfTitle');
     const titleInput = document.getElementById('pdfTitle');
-    if (savedTitle) {
-        titleInput.value = savedTitle;
-    }
-    titleInput.addEventListener('input', () => {
-        localStorage.setItem('pdfTitle', titleInput.value);
-    });
+    if (savedTitle && titleInput) titleInput.value = savedTitle;
+    if (titleInput) titleInput.addEventListener('input', () => localStorage.setItem('pdfTitle', titleInput.value));
 
-    // Cargar selección de días guardada
     const diasCheckboxes = document.querySelectorAll('.dia-check');
     const savedDias = JSON.parse(localStorage.getItem('savedDias')) || [];
-    if(savedDias.length > 0){
+    if (savedDias.length > 0) {
         diasCheckboxes.forEach(check => {
             check.checked = savedDias.includes(parseInt(check.value));
         });
@@ -54,12 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    document.getElementById('fechaInicio').value = new Date().toISOString().split('T')[0];
 
-    // Fechas iniciales
-    const hoy = new Date();
-    document.getElementById('fechaInicio').value = hoy.toISOString().split('T')[0];
-
-    // EVENTO CLAVE: Orden de columnas y cantidades
     document.querySelectorAll('.col-check').forEach(check => {
         const rol = check.value;
         const colGuardada = columnasElegidas.find(c => c.id === rol);
@@ -67,16 +87,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (colGuardada) {
             check.checked = true;
             const numInput = document.querySelector(`.col-num[data-rol="${rol}"]`);
-            if (numInput) {
-                numInput.value = colGuardada.cantidad;
-            }
+            if (numInput) numInput.value = colGuardada.cantidad;
         } else {
             check.checked = false;
         }
 
-        check.addEventListener('change', function () {
-            manejarSeleccionColumna(this);
-        });
+        check.addEventListener('change', function () { manejarSeleccionColumna(this); });
     });
 
     document.querySelectorAll('.col-num').forEach(numInput => {
@@ -90,6 +106,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ajustarPorComboDias();
 });
+
+// --- FUNCIONES DE INTERFAZ ---
+
+function toggleExtrasSabado(valor) {
+    incluirExtrasSabado = valor;
+    localStorage.setItem('incluirExtrasSabado', valor);
+    actualizarTodo();
+}
 
 function manejarSeleccionColumna(checkbox) {
     if (checkbox.checked) {
@@ -110,94 +134,88 @@ function toggleTheme() {
     localStorage.setItem('theme', newTheme);
 }
 
-// Función para aplicar el tema al cargar la página
 function applyTheme() {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
         document.documentElement.setAttribute('data-theme', savedTheme);
     } else {
-        // Si no hay tema guardado, usar la preferencia del sistema
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
     }
 }
-
-
-
-// Opcional: Escuchar cambios en la preferencia del sistema
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-    // Solo cambiar si no hay un tema guardado manualmente
-    if (!localStorage.getItem('theme')) {
-        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-    }
-});
 
 function toggleSidebar() {
     const layout = document.querySelector('.main-layout');
     const btn = document.getElementById('toggleSidebar');
     const icon = document.getElementById('sidebarIcon');
     const text = document.getElementById('sidebarText');
-
     if (!layout) return;
-
     const isHidden = layout.classList.toggle('sidebar-hidden');
-
-    // Actualización de UI
     if (btn) {
         btn.classList.toggle('sidebar-hidden-active', isHidden);
         if (icon) icon.innerText = isHidden ? "➡️" : "⬅️";
         if (text) text.innerText = isHidden ? "Mostrar Panel" : "Ocultar Panel";
     }
-
-    // Esperar a que termine la transición CSS (300ms) para refrescar la tabla
-    setTimeout(() => {
-        if (typeof actualizarTodo === 'function') {
-            actualizarTodo();
-        }
-    }, 300);
+    setTimeout(() => { actualizarTodo(); }, 300);
 }
 
-function actualizarVistaParticipantes() {
-    const selector = document.getElementById('listaSelector');
-    const listaSeleccionada = selector.value;
-    const listaActual = listas[listaSeleccionada] || [];
+// --- LOGICA DE PARTICIPANTES ---
 
+function actualizarVistaParticipantes() {
     const listaUL = document.getElementById('listaParticipantes');
-    listaUL.innerHTML = listaActual.map((p, idx) => `
-        <li style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border)">
-            <span>${p}</span>
-            <div>
-                <button onclick="editarParticipante(${idx})">✎</button>
-                <button onclick="eliminarParticipante(${idx})">×</button>
+    if (!listaUL) return;
+    listaUL.innerHTML = participantesData.map((p, idx) => {
+        const tagsHtml = configEtiquetas.map(eti => {
+            const isActive = p.tags.includes(eti.id) ? 'active' : '';
+            return `<button class="tag-btn ${isActive}" title="${eti.desc}" onclick="toggleTag(${idx}, '${eti.id}')">${eti.id}</button>`;
+        }).join('');
+
+        return `
+        <li class="participant-row">
+            <div class="participant-top">
+                <span>${p.nombre}</span>
+                <div>
+                    <button onclick="editarParticipante(${idx})">✎</button>
+                    <button onclick="eliminarParticipante(${idx})">×</button>
+                </div>
             </div>
-        </li>`).join('');
+            <div class="participant-tags">${tagsHtml}</div>
+        </li>`;
+    }).join('');
+}
+
+function toggleTag(participanteIdx, tagId) {
+    const p = participantesData[participanteIdx];
+    if (p.tags.includes(tagId)) {
+        p.tags = p.tags.filter(t => t !== tagId);
+    } else {
+        p.tags.push(tagId);
+    }
+    guardarParticipantes();
+    actualizarVistaParticipantes();
+    actualizarTodo();
 }
 
 function agregarParticipante() {
     const input = document.getElementById('nuevoNombre');
     const nombre = input.value.trim();
-    const listaSeleccionada = document.getElementById('listaSelector').value;
-    
-    if (nombre && !listas[listaSeleccionada].includes(nombre)) {
-        listas[listaSeleccionada].push(nombre);
+    if (nombre && !participantesData.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
+        participantesData.push({ nombre: nombre, tags: [] });
         input.value = '';
+        guardarParticipantes();
+        actualizarVistaParticipantes();
         actualizarTodo();
     }
 }
 
 function editarParticipante(index) {
-    const listaSeleccionada = document.getElementById('listaSelector').value;
-    const listaActual = listas[listaSeleccionada];
-    const nombreAntiguo = listaActual[index];
-
+    const nombreAntiguo = participantesData[index].nombre;
     const nuevoNombre = prompt("Editar nombre:", nombreAntiguo);
+
     if (nuevoNombre && nuevoNombre.trim() !== "" && nuevoNombre !== nombreAntiguo) {
         const nombreLimpio = nuevoNombre.trim();
-        
-        // Actualizar en la lista específica
-        listaActual[index] = nombreLimpio;
+        participantesData[index].nombre = nombreLimpio;
 
-        // Actualizar en todas las asignaciones manuales y automáticas
         Object.keys(manuales).forEach(fechaId => {
             Object.keys(manuales[fechaId]).forEach(rol => {
                 if (manuales[fechaId][rol] === nombreAntiguo) manuales[fechaId][rol] = nombreLimpio;
@@ -210,17 +228,167 @@ function editarParticipante(index) {
         });
 
         localStorage.setItem('manuales_v3', JSON.stringify(manuales));
+        guardarParticipantes();
         actualizarTodo();
     }
 }
 
 function eliminarParticipante(index) {
-    const listaSeleccionada = document.getElementById('listaSelector').value;
-    if (confirm("¿Quitar de la lista '" + listaSeleccionada + "'?")) {
-        listas[listaSeleccionada].splice(index, 1);
+    if (confirm("¿Eliminar a " + participantesData[index].nombre + "?")) {
+        participantesData.splice(index, 1);
+        guardarParticipantes();
         actualizarTodo();
     }
 }
+
+function guardarParticipantes() {
+    localStorage.setItem('participantesData_v2', JSON.stringify(participantesData));
+}
+
+// --- LOGICA DE ETIQUETAS (MODAL) ---
+
+function abrirModalEtiquetas() {
+    document.getElementById('modalEtiquetas').style.display = 'flex';
+
+    const todasLasColumnas = document.querySelectorAll('.col-check');
+    const checkContenedor = document.getElementById('checkColumnasEtiqueta');
+    checkContenedor.innerHTML = Array.from(todasLasColumnas).map(c => `
+        <label><input type="checkbox" class="new-tag-col" value="${c.value}"> ${c.dataset.label}</label>
+    `).join('');
+
+    renderizarEtiquetasModal();
+}
+
+function cerrarModalEtiquetas() {
+    document.getElementById('modalEtiquetas').style.display = 'none';
+    actualizarVistaParticipantes();
+    actualizarTodo();
+}
+
+function renderizarEtiquetasModal() {
+    const contenedor = document.getElementById('listaEtiquetasModal');
+    contenedor.innerHTML = configEtiquetas.map((eti, idx) => `
+        <div class="modal-tag-item">
+            <div>
+                <strong>${eti.id}</strong> - ${eti.desc} <br>
+                <span style="font-size: 0.75rem; color: gray;">Columnas: ${eti.columnas.join(', ')}</span>
+            </div>
+            <button class="btn-cancel" onclick="eliminarEtiqueta(${idx})" style="padding: 4px 8px;">Borrar</button>
+        </div>
+    `).join('');
+}
+
+function guardarNuevaEtiqueta() {
+    const idStr = document.getElementById('nuevaEtiquetaSigla').value.trim().toUpperCase();
+    const descStr = document.getElementById('nuevaEtiquetaDesc').value.trim();
+    const colsSeleccionadas = Array.from(document.querySelectorAll('.new-tag-col:checked')).map(cb => cb.value);
+
+    if (!idStr || !descStr || colsSeleccionadas.length === 0) {
+        alert("Llena la sigla, la descripción y selecciona al menos una columna.");
+        return;
+    }
+
+    if (configEtiquetas.some(e => e.id === idStr)) {
+        alert("Esa sigla ya existe.");
+        return;
+    }
+
+    configEtiquetas.push({ id: idStr, desc: descStr, columnas: colsSeleccionadas });
+    localStorage.setItem('configEtiquetas_v2', JSON.stringify(configEtiquetas));
+
+    document.getElementById('nuevaEtiquetaSigla').value = '';
+    document.getElementById('nuevaEtiquetaDesc').value = '';
+    document.querySelectorAll('.new-tag-col').forEach(cb => cb.checked = false);
+
+    renderizarEtiquetasModal();
+}
+
+function eliminarEtiqueta(idx) {
+    const etiquetaId = configEtiquetas[idx].id;
+    if (confirm(`¿Borrar la etiqueta ${etiquetaId}?`)) {
+        configEtiquetas.splice(idx, 1);
+        localStorage.setItem('configEtiquetas_v2', JSON.stringify(configEtiquetas));
+
+        participantesData.forEach(p => {
+            p.tags = p.tags.filter(t => t !== etiquetaId);
+        });
+        guardarParticipantes();
+        renderizarEtiquetasModal();
+    }
+}
+
+// --- LÓGICA DE BOSQUEJOS ---
+
+function actualizarVistaBosquejos() {
+    const listaUL = document.getElementById('listaBosquejos');
+    if (!listaUL) return;
+    listaUL.innerHTML = listaBosquejos.map((b, idx) => `
+        <li style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border)">
+            <span style="font-size: 0.8em;"><b>N° ${b.numero}</b>: ${b.tema}</span>
+            <div>
+                <button onclick="editarBosquejo(${idx})">✎</button>
+                <button onclick="eliminarBosquejo(${idx})">×</button>
+            </div>
+        </li>`).join('');
+}
+
+function agregarBosquejo() {
+    const inputNum = document.getElementById('nuevoBosquejoNum');
+    const numero = inputNum.value.trim();
+
+    if (numero) {
+        if (listaBosquejos.some(b => b.numero === numero)) {
+            alert("Ese número de bosquejo ya existe.");
+            return;
+        }
+        const tema = prompt(`Introduce el TEMA para el bosquejo N° ${numero}:`);
+        if (tema !== null && tema.trim() !== "") {
+            listaBosquejos.push({ numero: numero, tema: tema.trim() });
+            localStorage.setItem('listaBosquejos_v1', JSON.stringify(listaBosquejos));
+            inputNum.value = '';
+            actualizarTodo();
+        }
+    }
+}
+
+function editarBosquejo(index) {
+    const b = listaBosquejos[index];
+    const nuevoNumero = prompt("Editar N°:", b.numero);
+    if (nuevoNumero === null) return;
+    const nuevoTema = prompt("Editar tema:", b.tema);
+    if (nuevoTema === null) return;
+    listaBosquejos[index] = { numero: nuevoNumero.trim(), tema: nuevoTema.trim() };
+    localStorage.setItem('listaBosquejos_v1', JSON.stringify(listaBosquejos));
+    actualizarTodo();
+}
+
+function eliminarBosquejo(index) {
+    if (confirm(`¿Eliminar el bosquejo N° ${listaBosquejos[index].numero}?`)) {
+        listaBosquejos.splice(index, 1);
+        localStorage.setItem('listaBosquejos_v1', JSON.stringify(listaBosquejos));
+        actualizarTodo();
+    }
+}
+
+function seleccionarBosquejo(selectElement) {
+    const id = selectElement.dataset.fechaId;
+    const numeroSeleccionado = selectElement.value;
+    guardarDatoSabado(selectElement);
+
+    const bosquejoObj = listaBosquejos.find(b => b.numero === numeroSeleccionado);
+    const inputTema = document.getElementById(`tema_${id}`);
+
+    if (inputTema) {
+        if (bosquejoObj) {
+            inputTema.value = bosquejoObj.tema;
+        } else if (numeroSeleccionado === "") {
+            inputTema.value = "";
+        }
+        guardarDatoSabado(inputTema);
+    }
+}
+
+// --- ASIGNACIONES Y TABLA ---
 
 function guardarManual(fechaId, nombre, rol) {
     if (bloqueados[fechaId]) return;
@@ -255,6 +423,16 @@ function borrarFila(id) {
     }
 }
 
+function obtenerHabilitadosParaRol(rolBase) {
+    const etiquetasPermitidas = configEtiquetas.filter(eti => eti.columnas.includes(rolBase)).map(eti => eti.id);
+    if (etiquetasPermitidas.length === 0) return participantesData.map(p => p.nombre).sort();
+
+    return participantesData
+        .filter(p => p.tags.some(tag => etiquetasPermitidas.includes(tag)))
+        .map(p => p.nombre)
+        .sort((a, b) => a.localeCompare(b));
+}
+
 function asignarFila(id) {
     if (bloqueados[id]) return;
 
@@ -263,17 +441,19 @@ function asignarFila(id) {
         for (let i = 0; i < col.cantidad; i++) rolesPlano.push(`${col.id}_${i}`);
     });
 
-    let pool = [...participantes].sort(() => Math.random() - 0.5);
-    // Quitar a los que ya están puestos a mano hoy
-    let yaAsignados = Object.values(manuales[id] || {});
-    pool = pool.filter(p => !yaAsignados.includes(p));
-
     if (!asignaciones[id]) asignaciones[id] = {};
+    let yaAsignadosHoy = Object.values(manuales[id] || {});
 
-    rolesPlano.forEach(rol => {
-        if (!manuales[id]?.[rol]) {
-            if (pool.length > 0) {
-                asignaciones[id][rol] = pool.shift();
+    rolesPlano.forEach(rolUnico => {
+        if (!manuales[id]?.[rolUnico]) {
+            // CORRECCIÓN: Usar lastIndexOf para manejar guiones bajos en el nombre de la columna
+            const rolBase = rolUnico.substring(0, rolUnico.lastIndexOf('_'));
+            const candidatos = obtenerHabilitadosParaRol(rolBase).filter(nombre => !yaAsignadosHoy.includes(nombre));
+
+            if (candidatos.length > 0) {
+                const elegido = candidatos[Math.floor(Math.random() * candidatos.length)];
+                asignaciones[id][rolUnico] = elegido;
+                yaAsignadosHoy.push(elegido);
             }
         }
     });
@@ -282,131 +462,87 @@ function asignarFila(id) {
 
 function actualizarBotonesDeLimpieza() {
     const contenedor = document.getElementById('contenedorBotonesDinamicos');
-    contenedor.innerHTML = ''; // Limpiar botones anteriores
-
+    if (!contenedor) return;
+    contenedor.innerHTML = '';
     columnasElegidas.forEach(col => {
         const btn = document.createElement('button');
         btn.className = 'btn-clear';
-        // Usamos el label de la columna para el texto del botón
         btn.innerHTML = `🗑️ ${col.label.substring(0, 4)}.`;
         btn.title = `Limpiar columna ${col.label}`;
-
-        // Al hacer clic, llama a la función de limpieza que creamos antes
-        btn.onclick = () => {
-            if (confirm(`¿Limpiar todas las asignaciones de ${col.label}?`)) {
-                limpiarColumna(col.id);
-            }
-        };
-
+        btn.onclick = () => { if (confirm(`¿Limpiar todas las asignaciones de ${col.label}?`)) limpiarColumna(col.id); };
         contenedor.appendChild(btn);
     });
 }
 
 function asignarAleatoriamente() {
-    // 1. Validación de seguridad
-    if (columnasElegidas.length === 0) {
-        alert("⚠️ Por favor, selecciona al menos una columna en el panel lateral antes de asignar.");
-        return;
-    }
+    if (columnasElegidas.length === 0) { alert("⚠️ Selecciona al menos una columna."); return; }
+    if (participantesData.length === 0) { alert("⚠️ No hay participantes."); return; }
 
-    if (participantes.length === 0) {
-        alert("⚠️ No hay participantes en la lista.");
-        return;
-    }
-
-    // 2. Ejecutar la asignación por cada fila de la tabla
     const fechas = generarFechas();
     fechas.forEach(f => {
         const id = f.toISOString().split('T')[0];
-        asignarFila(id); // Esta función ya la actualizamos antes para usar roles dinámicos
+        asignarFila(id);
     });
 }
 
-// Limpiar una columna completa
 function limpiarColumna(rolBase) {
-    // Recorremos los días en el objeto de asignaciones aleatorias
     Object.keys(asignaciones).forEach(id => {
         if (asignaciones[id]) {
             Object.keys(asignaciones[id]).forEach(key => {
-                // Si la columna pertenece al rol (ej: plataforma_0), la borramos
-                if (key.startsWith(rolBase)) {
-                    delete asignaciones[id][key];
-                }
+                if (key.startsWith(rolBase)) delete asignaciones[id][key];
             });
         }
     });
-
-    // NOTA: No tocamos el objeto 'manuales' aquí para que tus selecciones a mano sigan ahí.
     actualizarTodo();
 }
 
-// Vaciar absolutamente todas las asignaciones (Limpiar Todo)
 function limpiarAsignaciones() {
-    if (confirm("¿Estás seguro de que deseas vaciar todas las asignaciones ALEATORIAS? (Las manuales se conservarán)")) {
-        // Vaciamos solo el objeto de asignaciones automáticas
+    if (confirm("¿Vaciar todas las asignaciones ALEATORIAS? (Las manuales se conservarán)")) {
         asignaciones = {};
-        // No tocamos el objeto 'manuales'
         actualizarTodo();
     }
 }
 
 function obtenerDiasSeleccionados() {
-    const checkboxes = document.querySelectorAll('.dia-check:checked');
-    return Array.from(checkboxes).map(cb => parseInt(cb.value));
+    return Array.from(document.querySelectorAll('.dia-check:checked')).map(cb => parseInt(cb.value));
 }
 
-// La función generarFechas ahora es más sencilla porque siempre lee los inputs
 function generarFechas() {
     const inicioStr = document.getElementById('fechaInicio').value;
     const finalStr = document.getElementById('fechaFin').value;
-
     if (!inicioStr || !finalStr) return [];
 
     const lista = [];
     const diasPermitidos = obtenerDiasSeleccionados();
-
     let f = new Date(inicioStr + 'T00:00:00');
     const fEnd = new Date(finalStr + 'T00:00:00');
 
-    // Seguridad: si la fecha final es menor a la inicial, no hace nada
     if (fEnd < f) return [];
-
     while (f <= fEnd) {
-        if (diasPermitidos.includes(f.getDay())) {
-            lista.push(new Date(f));
-        }
+        if (diasPermitidos.includes(f.getDay())) lista.push(new Date(f));
         f.setDate(f.getDate() + 1);
-
-        // Límite de seguridad para evitar bloqueos del navegador
         if (lista.length > 60) break;
     }
     return lista;
 }
 
-// Función para cuando se cambia el combo (1 semana, 15 días, etc.)
 function ajustarPorComboDias() {
     const inicioStr = document.getElementById('fechaInicio').value;
     const dias = document.getElementById('cantidadFechas').value;
-
     if (!inicioStr || dias === "custom") return;
 
     let fInicio = new Date(inicioStr + 'T00:00:00');
     let fFin = new Date(fInicio);
-
     fFin.setDate(fInicio.getDate() + (parseInt(dias) - 1));
     document.getElementById('fechaFin').value = fFin.toISOString().split('T')[0];
-
     actualizarTodo();
 }
 
-// Función para cuando el usuario toca manualmente las fechas
 function manejarCambioFechaManual() {
-    // Cambiamos el selector a "Personalizado"
     document.getElementById('cantidadFechas').value = "custom";
     actualizarTodo();
 }
 
-// Sincroniza las cantidades si el checkbox ya está marcado
 function actualizarDatosColumnas() {
     columnasElegidas.forEach(col => {
         const input = document.querySelector(`.col-num[data-rol="${col.id}"]`);
@@ -416,30 +552,27 @@ function actualizarDatosColumnas() {
 
 function actualizarEncabezado() {
     let html = `<tr><th>Fecha / Día</th>`;
-    columnasElegidas.forEach(col => {
-        html += `<th colspan="${col.cantidad}">${col.label}</th>`;
-    });
+    columnasElegidas.forEach(col => html += `<th colspan="${col.cantidad}">${col.label}</th>`);
     html += `<th style="width: 40px;">🔒</th><th style="width: 40px;">➕</th><th style="width: 40px;">🗑️</th></tr>`;
-    document.querySelector('#tablaAsignaciones thead').innerHTML = html;
+    const thead = document.querySelector('#tablaAsignaciones thead');
+    if (thead) thead.innerHTML = html;
 }
 
 function actualizarTodo() {
     localStorage.setItem('columnasElegidas_v1', JSON.stringify(columnasElegidas));
-    localStorage.setItem('listas_participantes_v1', JSON.stringify(listas));
 
-    actualizarVistaParticipantes(); // Llama a la nueva función para la lista del sidebar
-    
+    actualizarVistaParticipantes();
+    actualizarVistaBosquejos();
     actualizarBotonesDeLimpieza();
     actualizarEncabezado();
 
     let rolesPlano = [];
     columnasElegidas.forEach(col => {
-        for (let i = 0; i < col.cantidad; i++) {
-            rolesPlano.push(`${col.id}_${i}`);
-        }
+        for (let i = 0; i < col.cantidad; i++) rolesPlano.push(`${col.id}_${i}`);
     });
 
     const tablaBody = document.getElementById('cuerpoTabla');
+    if (!tablaBody) return;
     tablaBody.innerHTML = '';
     const fechas = generarFechas();
     let mesActual = -1;
@@ -456,16 +589,15 @@ function actualizarTodo() {
 
         let celdas = rolesPlano.map(rol => {
             const valor = manuales[id]?.[rol] || asignaciones[id]?.[rol] || "";
-            const rolBase = rol.split('_')[0]; // ej. 'presidencia'
-
-            // Usar la lista específica si existe, sino la general
-            const listaParaRol = listas[rolBase] && listas[rolBase].length > 0 ? listas[rolBase] : listas.general;
+            // CORRECCIÓN: Obtener el nombre de columna base correctamente
+            const rolBase = rol.substring(0, rol.lastIndexOf('_'));
+            const listaParaRol = obtenerHabilitadosParaRol(rolBase);
 
             return `<td>
                 <select class="${manuales[id]?.[rol] ? 'manual-selected' : ''}" 
                         onchange="guardarManual('${id}', this.value, '${rol}')" ${estaBloqueado ? 'disabled' : ''}>
                     <option value="">--</option>
-                    ${listaParaRol.map(p => `<option value="${p}" ${valor === p ? 'selected' : ''}>${p}</option>`).join('')}
+                    ${listaParaRol.map(n => `<option value="${n}" ${valor === n ? 'selected' : ''}>${n}</option>`).join('')}
                 </select>
             </td>`;
         }).join('');
@@ -479,6 +611,41 @@ function actualizarTodo() {
             <td><button onclick="asignarFila('${id}')" ${estaBloqueado ? 'disabled' : ''}>+</button></td>
             <td><button onclick="borrarFila('${id}')" ${estaBloqueado ? 'disabled' : ''}>🗑️</button></td>`;
         tablaBody.appendChild(fila);
+
+        // FILA EXTRA SOLO SI ESTÁ ACTIVADA
+        if (incluirExtrasSabado && (f.getDay() === 6 || f.getDay() === 0)) {
+            const totalColumnas = rolesPlano.length + 4;
+            const sabadoFila = document.createElement('tr');
+            sabadoFila.className = 'sabado-extra-row';
+            const datosSabado = sabadoData[id] || {};
+
+            sabadoFila.innerHTML = `
+                <td colspan="${totalColumnas}" style="padding: 4px; background-color: var(--bg-secondary); border-top: 1px dashed var(--border-th);">
+                    <div style="display: grid; grid-template-columns: 1.5fr 1fr 2fr 1.5fr; gap: 8px;">
+                        <div>
+                            <span style="font-size: 0.7rem; font-weight: bold; display: block; margin-bottom: 1px; color: var(--primary);">Conferenciante</span>
+                            <input type="text" placeholder="Nombre..." value="${datosSabado.conferenciante || ''}" data-fecha-id="${id}" data-sabado-rol="conferenciante" onchange="guardarDatoSabado(this)">
+                        </div>
+                        <div>
+                            <span style="font-size: 0.7rem; font-weight: bold; display: block; margin-bottom: 1px; color: var(--primary);">N° Bosquejo</span>
+                            <select data-fecha-id="${id}" data-sabado-rol="bosquejo" onchange="seleccionarBosquejo(this)">
+                                <option value="">-- Elegir --</option>
+                                ${listaBosquejos.map(b => `<option value="${b.numero}" ${datosSabado.bosquejo === b.numero ? 'selected' : ''}>${b.numero}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.7rem; font-weight: bold; display: block; margin-bottom: 1px; color: var(--primary);">Tema</span>
+                            <input type="text" id="tema_${id}" placeholder="Título del tema..." value="${datosSabado.tema || ''}" data-fecha-id="${id}" data-sabado-rol="tema" onchange="guardarDatoSabado(this)">
+                        </div>
+                        <div>
+                            <span style="font-size: 0.7rem; font-weight: bold; display: block; margin-bottom: 1px; color: var(--primary);">Hospitalidad</span>
+                            <input type="text" placeholder="Asignado a..." value="${datosSabado.hospitalidad || ''}" data-fecha-id="${id}" data-sabado-rol="hospitalidad" onchange="guardarDatoSabado(this)">
+                        </div>
+                    </div>
+                </td>
+            `;
+            tablaBody.appendChild(sabadoFila);
+        }
     });
 }
 
@@ -487,12 +654,9 @@ function exportarPDF() {
     const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    // 1. Configuración de Roles y Encabezados
     const rolesPlano = [];
     columnasElegidas.forEach(col => {
-        for (let i = 0; i < col.cantidad; i++) {
-            rolesPlano.push(`${col.id}_${i}`);
-        }
+        for (let i = 0; i < col.cantidad; i++) rolesPlano.push(`${col.id}_${i}`);
     });
 
     if (rolesPlano.length === 0) {
@@ -500,21 +664,11 @@ function exportarPDF() {
         return;
     }
 
-    const head = [];
-    const headerRow = [];
-
-    headerRow.push({ content: 'Día', styles: { halign: 'left' } });
-
+    const head = [[{ content: 'Día', styles: { halign: 'left' } }]];
     columnasElegidas.forEach(col => {
-        headerRow.push({
-            content: col.label,
-            colSpan: col.cantidad,
-            styles: { halign: 'left' }
-        });
+        head[0].push({ content: col.label, colSpan: col.cantidad, styles: { halign: 'left' } });
     });
-    head.push(headerRow);
 
-    // 2. Agrupar fechas por mes
     const fechas = generarFechas();
     const meses = {};
     fechas.forEach(f => {
@@ -525,86 +679,62 @@ function exportarPDF() {
 
     let currentY = 20;
 
-    // 3. Dibujar Encabezado Principal Minimalista
-    const pdfTitle = document.getElementById('pdfTitle').value || 'Asignaciones';
-    
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(40, 40, 40); // Gris muy oscuro en lugar de negro
-    doc.setFontSize(10);
-    doc.text(pdfTitle.toUpperCase(), 15, currentY);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("Asignaciones semanales", 15, currentY + 6);
-
-    // Línea separadora sutil
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.2);
-    doc.line(15, currentY + 10, pageWidth - 15, currentY + 10);
-
-    currentY += 20;
-
-    // 4. Iterar sobre cada mes
     Object.keys(meses).forEach((nombreMes) => {
-        // Título del Mes
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(100, 100, 100); // Gris medio para el mes
-        const tituloMes = nombreMes.toUpperCase();
-        doc.text(tituloMes, 15, currentY);
+        const pdfTitle = document.getElementById('pdfTitle').value || 'Asignaciones';
+        doc.setFont("helvetica", "normal").setTextColor(40, 40, 40).setFontSize(10);
+        doc.text(pdfTitle.toUpperCase(), 15, currentY);
+        doc.setFont("helvetica", "bold").setFontSize(14).text("Asignaciones semanales", 15, currentY + 6);
+        doc.setDrawColor(200, 200, 200).setLineWidth(0.2).line(15, currentY + 10, pageWidth - 15, currentY + 10);
 
-        const bodyMes = meses[nombreMes].map(f => {
+        currentY += 20;
+        doc.setFontSize(10).setFont("helvetica", "normal").setTextColor(100, 100, 100).text(nombreMes.toUpperCase(), 15, currentY);
+
+        const bodyMes = [];
+        meses[nombreMes].forEach(f => {
             const id = f.toISOString().split('T')[0];
-            const dia = f.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit' }).replace('.', ''); // Quita el punto del día
-            const fila = [dia];
+            const diaStr = f.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit' }).replace('.', '');
+            const esSabadoODomingo = f.getDay() === 6 || f.getDay() === 0;
+            const esMartes = f.getDay() === 2;
+
+            const filaAsignacion = [{ content: diaStr, metaColor: esSabadoODomingo ? [245, 242, 235] : (esMartes ? [235, 244, 250] : [255, 255, 255]) }];
             rolesPlano.forEach(rol => {
-                fila.push(manuales[id]?.[rol] || asignaciones[id]?.[rol] || "-");
+                filaAsignacion.push(manuales[id]?.[rol] || asignaciones[id]?.[rol] || "-");
             });
-            return fila;
+            bodyMes.push(filaAsignacion);
+
+            // SOLO INCLUIR EXTRAS SI LA OPCIÓN ESTÁ MARCADA
+            if (incluirExtrasSabado && esSabadoODomingo) {
+                const datosSabado = sabadoData[id];
+                if (datosSabado && Object.keys(datosSabado).length > 0) {
+                    const sabadoContent = `Conferenciante: ${datosSabado.conferenciante || '-'} | N° de Bosquejo: ${datosSabado.bosquejo || '-'} | Tema: ${datosSabado.tema || '-'} | Hospitalidad: ${datosSabado.hospitalidad || '-'}`;
+                    bodyMes.push([{ content: sabadoContent, colSpan: rolesPlano.length + 1, metaColor: [220, 217, 210], isInfo: true }]);
+                }
+            }
+
+            if (esMartes || esSabadoODomingo) {
+                bodyMes.push([{ content: '', colSpan: rolesPlano.length + 1, metaColor: [255, 255, 255], isSpace: true }]);
+            }
         });
 
-        // 5. Tabla Minimalista
         doc.autoTable({
             head: head,
             body: bodyMes,
             startY: currentY + 4,
-            theme: 'plain', // Elimina toda la cuadrícula predeterminada
-            styles: {
-                fontSize: rolesPlano.length > 5 ? 7.5 : 8.5,
-                cellPadding: 3, // Más espacio interior (aire)
-                halign: 'left',
-                valign: 'middle',
-                textColor: [80, 80, 80], // Texto en gris oscuro suave
-                overflow: 'linebreak'
-            },
-            headStyles: {
-                fillColor: false,
-                textColor: [20, 20, 20], // Encabezados casi negros
-                fontStyle: 'bold',
-                fontSize: rolesPlano.length > 5 ? 8 : 9,
-                cellPadding: { top: 2, bottom: 4, left: 3, right: 3 }
-            },
-            alternateRowStyles: {
-                fillColor: [248, 248, 248] // Un sombreado extremadamente sutil para guiar la vista sin líneas
-            },
+            theme: 'plain',
+            styles: { fontSize: rolesPlano.length > 5 ? 7 : 8, cellPadding: 2.5, textColor: [70, 70, 70] },
+            headStyles: { fillColor: [255, 255, 255], textColor: [20, 20, 20], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: false },
             margin: { left: 15, right: 15 },
-            // Dibuja una línea sutil solo debajo de los encabezados
-            didDrawPage: function(data) {
-                // No es necesario en esta versión, el diseño limpio se sostiene solo
-            },
-            willDrawCell: function(data) {
-                // Agrega una línea sutil debajo del encabezado
-                if (data.section === 'head') {
-                    doc.setDrawColor(220, 220, 220);
-                    doc.setLineWidth(0.1);
-                    doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+            didParseCell: function (data) {
+                const rawCell = data.row.raw[0];
+                if (data.section === 'body' && rawCell && rawCell.metaColor) {
+                    data.cell.styles.fillColor = rawCell.metaColor;
+                    if (rawCell.isInfo) data.cell.styles.fontSize = 7;
+                    if (rawCell.isSpace) data.cell.styles.cellPadding = { top: 0.65, bottom: 0.65 };
                 }
             },
-            didDrawPage: (data) => {
-                currentY = data.cursor.y + 15;
-            }
+            didDrawPage: (data) => { currentY = data.cursor.y + 15; }
         });
-
         currentY = doc.lastAutoTable.finalY + 15;
     });
 
@@ -614,35 +744,28 @@ function exportarPDF() {
 function abrirModalLimpiezaManual() {
     const modal = document.getElementById('modalLimpiezaManual');
     const contenedor = document.getElementById('contenedorCheckboxesModal');
-
+    if (!contenedor || !modal) return;
     contenedor.innerHTML = '';
 
-    // 1. Identificar qué roles base (ej: 'microfono') tienen asignaciones manuales.
     const rolesConAsignacionesManuales = new Set();
     Object.values(manuales).forEach(dia => {
         Object.keys(dia).forEach(rolCompleto => {
-            const rolBase = rolCompleto.split('_')[0];
-            rolesConAsignacionesManuales.add(rolBase);
+            // CORRECCIÓN: Usar lastIndexOf para detectar correctamente la columna
+            const rb = rolCompleto.substring(0, rolCompleto.lastIndexOf('_'));
+            if (rb) rolesConAsignacionesManuales.add(rb);
         });
     });
 
-    // 2. De las columnas que el usuario tiene seleccionadas para ver en la tabla,
-    //    filtramos para quedarnos solo con aquellas que SÍ tienen asignaciones manuales.
     const columnasParaLimpiar = columnasElegidas.filter(col => rolesConAsignacionesManuales.has(col.id));
 
-    // 3. Si después de filtrar no queda ninguna, no hay nada que limpiar.
     if (columnasParaLimpiar.length === 0) {
-        alert("No hay asignaciones manuales para limpiar en las columnas que se están mostrando actualmente.");
+        alert("No hay asignaciones manuales para limpiar en las columnas actuales.");
         return;
     }
 
-    // 4. Si hay columnas, las mostramos en el modal.
     columnasParaLimpiar.forEach(col => {
         const item = document.createElement('label');
-        item.innerHTML = `
-            <input type="checkbox" class="modal-col-check" value="${col.id}">
-            <span>${col.label}</span>
-        `;
+        item.innerHTML = `<input type="checkbox" class="modal-col-check" value="${col.id}"><span>${col.label}</span>`;
         contenedor.appendChild(item);
     });
 
@@ -653,43 +776,41 @@ function cerrarModalLimpiezaManual() {
     document.getElementById('modalLimpiezaManual').style.display = 'none';
 }
 
-// 3. Ejecutar la limpieza basada en la selección del modal
 function ejecutarLimpiezaManualModal() {
-    // Obtener qué roles base marcó el usuario en el modal
     const seleccionados = Array.from(document.querySelectorAll('.modal-col-check:checked')).map(cb => cb.value);
+    if (seleccionados.length === 0) { alert("Selecciona al menos una columna."); return; }
 
-    if (seleccionados.length === 0) {
-        alert("Por favor, selecciona al menos una columna para limpiar.");
-        return;
-    }
-
-    // Recorrer el objeto de manuales
     Object.keys(manuales).forEach(idFecha => {
         Object.keys(manuales[idFecha]).forEach(rolUnico => {
-            // rolUnico es algo como "audio_video_0", extraemos el prefijo "audio_video"
-            const rolBase = rolUnico.split('_')[0];
-
-            // Si el rol base está en la lista de seleccionados del modal, lo borramos
-            if (seleccionados.includes(rolBase)) {
-                delete manuales[idFecha][rolUnico];
-            }
+            // CORRECCIÓN: Obtener el nombre de columna base correctamente
+            const rolBase = rolUnico.substring(0, rolUnico.lastIndexOf('_'));
+            if (seleccionados.includes(rolBase)) delete manuales[idFecha][rolUnico];
         });
-
-        // Si el objeto de esa fecha quedó vacío, lo eliminamos para limpiar memoria
-        if (Object.keys(manuales[idFecha]).length === 0) {
-            delete manuales[idFecha];
-        }
+        if (Object.keys(manuales[idFecha]).length === 0) delete manuales[idFecha];
     });
 
-    // Guardar cambios en LocalStorage y refrescar
     localStorage.setItem('manuales_v3', JSON.stringify(manuales));
     cerrarModalLimpiezaManual();
     actualizarTodo();
 }
 
 function guardarSeleccionDias() {
-    const diasSeleccionados = obtenerDiasSeleccionados();
-    localStorage.setItem('savedDias', JSON.stringify(diasSeleccionados));
+    localStorage.setItem('savedDias', JSON.stringify(obtenerDiasSeleccionados()));
+}
+
+function guardarDatoSabado(input) {
+    const id = input.dataset.fechaId;
+    const rol = input.dataset.sabadoRol;
+    const valor = input.value.trim();
+
+    if (!sabadoData[id]) sabadoData[id] = {};
+
+    if (valor) sabadoData[id][rol] = valor;
+    else {
+        delete sabadoData[id][rol];
+        if (Object.keys(sabadoData[id]).length === 0) delete sabadoData[id];
+    }
+    localStorage.setItem('sabadoData_v1', JSON.stringify(sabadoData));
 }
 
 actualizarTodo();
