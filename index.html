@@ -58,8 +58,7 @@
             <div class="control-group">
                 <h3>Título del PDF</h3>
                 <div style="margin-top: 5px;">
-                    <input type="text" id="pdfTitle" placeholder="Escriba nombre de la congregación"
-                        style="width: 95%; flex-grow: 1; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                    <input type="text" id="pdfTitle" placeholder="Escriba nombre de la congregación">
                 </div>
             </div>
             <div class="control-group">
@@ -143,58 +142,66 @@
                     <h3>Días de reuniones</h3>
                     <label style="font-size: 0.8rem; font-weight: bold; margin-top: 10px; display: block;">Días a
                         incluir:</label>
-                    <div id="selectorDias"
-                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px;">
-                        <label style="font-size: 0.75rem;"><input type="checkbox" class="dia-check" value="1">
-                            Lunes</label>
-                        <label style="font-size: 0.75rem;"><input type="checkbox" class="dia-check" value="2">
-                            Martes</label>
-                        <label style="font-size: 0.75rem;"><input type="checkbox" class="dia-check" value="3">
-                            Miércoles</label>
-                        <label style="font-size: 0.75rem;"><input type="checkbox" class="dia-check" value="4">
-                            Jueves</label>
-                        <label style="font-size: 0.75rem;"><input type="checkbox" class="dia-check" value="5">
-                            Viernes</label>
-                        <label style="font-size: 0.75rem;"><input type="checkbox" class="dia-check" value="6">
-                            Sábado</label>
-                        <label style="font-size: 0.75rem;"><input type="checkbox" class="dia-check" value="0">
-                            Domingo</label>
+                    <div id="selectorDias">
+                        <label><input type="checkbox" class="dia-check" value="1"> Lunes</label>
+                        <label><input type="checkbox" class="dia-check" value="2"> Martes</label>
+                        <label><input type="checkbox" class="dia-check" value="3"> Miércoles</label>
+                        <label><input type="checkbox" class="dia-check" value="4"> Jueves</label>
+                        <label><input type="checkbox" class="dia-check" value="5"> Viernes</label>
+                        <label><input type="checkbox" class="dia-check" value="6"> Sábado</label>
+                        <label><input type="checkbox" class="dia-check" value="0"> Domingo</label>
+                    </div>
+
+                    <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--border);">
+                        <label
+                            style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold;">
+                            <input type="checkbox" id="checkIncluirExtras" checked
+                                onchange="toggleExtrasSabado(this.checked)">
+                            Incluir detalles de Discurso (Sáb/Dom)
+                        </label>
                     </div>
 
                 </div>
                 <div>
                     <h3>Fechas para la tabla</h3>
-                    <div id="idcontenedorFp">
-                        <label style="font-size: 0.8rem; font-weight: bold;">Rango rápido:</label>
-                        <select id="cantidadFechas" onchange="ajustarPorComboDias()">
-                            <option value="7" selected>1 Semana</option>
-                            <option value="15">15 Días</option>
-                            <option value="30">1 Mes (30 días)</option>
-                            <option value="custom">Personalizado...</option>
-                        </select>
-
-                        <h4 style="margin-top: 15px; margin-bottom: 5px;">O seleccionar rango manual</h4>
-                        <label for="fechaInicio" style="font-size: 0.9rem;">Desde:</label>
-                        <input type="date" id="fechaInicio" onchange="manejarCambioFechaManual()">
-
-                        <label for="fechaFin" style="font-size: 0.9rem;">Hasta:</label>
-                        <input type="date" id="fechaFin" onchange="manejarCambioFechaManual()">
-                    </div>
-                </div>
-                <div>
-                    <h3>Lista de Participantes</h3>
-                    <select id="listaSelector" onchange="actualizarVistaParticipantes()" style="width: 100%; padding: 8px; margin-bottom: 10px;">
-                        <option value="general">General</option>
-                        <option value="presidencia">Presidencia</option>
-                        <option value="plataforma">Plataforma</option>
-                        <option value="audio_video">Audio y Video</option>
-                        <option value="camara">Cámara</option>
+                    <label style="font-size: 0.8rem; font-weight: bold;">Rango rápido:</label>
+                    <select id="cantidadFechas" onchange="ajustarPorComboDias()">
+                        <option value="7" selected>1 Semana</option>
+                        <option value="15">15 Días</option>
+                        <option value="30">1 Mes (30 días)</option>
+                        <option value="custom">Personalizado...</option>
                     </select>
+
+                    <h4 style="margin-top: 15px; margin-bottom: 5px;">O seleccionar rango manual</h4>
+                    <label for="fechaInicio" style="font-size: 0.9rem;">Desde:</label>
+                    <input type="date" id="fechaInicio" onchange="manejarCambioFechaManual()">
+
+                    <label for="fechaFin" style="font-size: 0.9rem;">Hasta:</label>
+                    <input type="date" id="fechaFin" onchange="manejarCambioFechaManual()">
+                </div>
+
+                <div>
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; margin-top: 15px;">
+                        <h3 style="margin: 0;">Lista de Participantes</h3>
+                        <button onclick="abrirModalEtiquetas()" class="btn-theme"
+                            style="padding: 2px 6px; font-size: 0.75rem;">⚙️ Etiquetas</button>
+                    </div>
                     <div id="idcontenedorFp">
                         <input type="text" id="nuevoNombre" placeholder="Escribe un nombre..."
                             onkeypress="if(event.key==='Enter') agregarParticipante()">
-                        <button class="btn-add" onclick="agregarParticipante()">+ Añadir</button>
+                        <button class="btn-add" onclick="agregarParticipante()">+ Añadir a la lista</button>
                         <ul id="listaParticipantes" class="participant-list"></ul>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <h3>Lista de Bosquejos</h3>
+                    <div id="idcontenedorFpBosquejos">
+                        <input type="text" id="nuevoBosquejoNum" placeholder="N° de bosquejo..."
+                            onkeypress="if(event.key==='Enter') agregarBosquejo()">
+                        <button class="btn-add" onclick="agregarBosquejo()">+ Añadir</button>
+                        <ul id="listaBosquejos" class="participant-list"></ul>
                     </div>
                 </div>
             </div>
@@ -217,6 +224,31 @@
                 <button class="btn-cancel" onclick="cerrarModalLimpiezaManual()">Cancelar</button>
                 <button class="btn-confirm" onclick="ejecutarLimpiezaManualModal()">Confirmar</button>
             </div>
+        </div>
+    </div>
+
+    <div id="modalEtiquetas" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-button" onclick="cerrarModalEtiquetas()">&times;</span>
+            <h2>⚙️ Gestor de Etiquetas</h2>
+            <p style="font-size: 0.9rem; margin-bottom: 15px;">Crea etiquetas (ej. P, A, AV) y selecciona en qué
+                columnas estarán disponibles las personas que tengan esa etiqueta.</p>
+
+            <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-bottom: 10px;">
+                    <input type="text" id="nuevaEtiquetaSigla" placeholder="Sigla (ej: A)" maxlength="3">
+                    <input type="text" id="nuevaEtiquetaDesc" placeholder="Descripción (ej: Acomodador)">
+                </div>
+                <p style="font-size: 0.8rem; font-weight: bold;">Habilita esta etiqueta para las columnas:</p>
+                <div id="checkColumnasEtiqueta"
+                    style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; font-size: 0.85rem;">
+                </div>
+                <button class="btn-add" onclick="guardarNuevaEtiqueta()" style="margin-top: 10px; width: 100%;">+ Crear
+                    Etiqueta</button>
+            </div>
+
+            <h3>Etiquetas Actuales</h3>
+            <div id="listaEtiquetasModal" class="modal-tag-list"></div>
         </div>
     </div>
 
