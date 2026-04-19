@@ -1,32 +1,36 @@
 :root {
-    /* Paleta estilo Editor Light (Inspirado en GitHub Light/Atom) */
+    /* Paleta estilo Editor Light */
     --bg: #FFFFFF;
     --card-bg: #F6F8FA;
     --card-accent: #E1E4E8;
+    --bg-secondary: #E1E4E8;
+    /* Añadida variable faltante */
     --text-main: #24292E;
     --text-muted: #6A737D;
     --primary: #2d4561;
-    /* Azul de funciones */
     --accent: #22863A;
-    /* Verde de strings */
     --border: #D1D5DA;
+    --border-color: #D1D5DA;
+    /* Añadida variable faltante */
     --border-th: #ADB5BD;
     --shadow-strong: 0 1px 3px rgba(0, 0, 0, 0.05);
     --code-font: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
 
 [data-theme="dark"] {
-    /* Paleta estilo One Dark / Monokai */
+    /* Paleta estilo One Dark */
     --bg: #1E1E1E;
     --card-bg: #252526;
     --card-accent: #333333;
+    --bg-secondary: #333333;
+    /* Añadida variable faltante */
     --text-main: #D4D4D4;
     --text-muted: #858585;
     --primary: #569CD6;
-    /* Keywords */
     --accent: #CE9178;
-    /* Strings */
     --border: #3E3E42;
+    --border-color: #3E3E42;
+    /* Añadida variable faltante */
     --shadow-strong: none;
 }
 
@@ -35,21 +39,20 @@ body {
     color: var(--text-main);
     font-family: var(--code-font);
     margin: 0;
-    padding: 20px;
-    line-height: 1.5;
+    padding: 15px;
+    /* Reducido de 20px */
+    line-height: 1.4;
 }
 
 /* --- ESTRUCTURA PRINCIPAL --- */
-
 .header-flex {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 20px;
-    margin-bottom: 20px;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
     border-bottom: 1px solid var(--border);
     text-transform: lowercase;
-    /* Estilo terminal */
 }
 
 .header-flex::before {
@@ -60,8 +63,9 @@ body {
 
 .main-layout {
     display: flex;
-    gap: 20px;
+    gap: 15px;
     align-items: flex-start;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
 }
 
 .content-area {
@@ -71,35 +75,36 @@ body {
 
 .sidebar {
     flex: 0 0 320px;
+    width: 320px;
     background: var(--card-bg);
-    padding: 20px;
+    padding: 15px;
     border: 1px solid var(--border) !important;
     border-radius: 4px;
-    /* Bordes más rectos estilo IDE */
     max-height: 90vh;
     overflow-y: auto;
     position: sticky;
-    top: 20px;
+    top: 15px;
     box-shadow: var(--shadow-strong);
+    transition: all 0.3s ease;
+    opacity: 1;
+    visibility: visible;
 }
 
 #selectorDias {
-    padding: 5px;
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
 }
 
 #selectorDias label {
-    padding: 6px 10px;
+    padding: 4px 8px;
     border: 1px solid var(--border);
     border-radius: 3px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     background: var(--card-accent);
 }
 
-/* --- ESTILOS DE COMPONENTES --- */
-
+/* --- ESTILOS DE TABLA COMPACTA --- */
 .table-container {
     background: var(--card-bg);
     border: 1px solid var(--border);
@@ -110,87 +115,110 @@ body {
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
+
+/* Letra un poco más pequeña */
 
 th,
 td {
-    padding: 10px 15px;
+    padding: 4px 6px;
+    /* Súper compacto: Reducido de 10px 15px */
     text-align: left;
     border-bottom: 1px solid var(--border);
     border-right: 1px solid var(--border);
-    /* Rejilla de editor */
+    vertical-align: middle;
 }
 
 th {
     background: var(--card-accent);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--primary);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
+    padding-top: 6px;
+    padding-bottom: 6px;
 }
 
-.th-pdf {
-    padding: 6px 10px;
+/* Evitar que los inputs/selects inflen la tabla */
+.table-container select,
+.table-container input[type="text"] {
+    width: 100%;
+    padding: 2px 4px;
+    margin-bottom: 0;
+    /* Quita el margen de 12px anterior */
     border: 1px solid var(--border);
     border-radius: 3px;
-    font-size: 0.8rem;
-    background: var(--card-accent);
+    background: var(--bg);
+    color: var(--accent);
+    font-family: var(--code-font);
+    font-size: 0.75rem;
+    box-sizing: border-box;
+    outline: none;
+    height: 24px;
+    /* Altura fija pequeña */
 }
 
-/* Inputs y Selects */
+.table-container select:focus,
+.table-container input:focus {
+    border-color: var(--primary);
+}
+
+.date-cell {
+    white-space: nowrap;
+    font-size: 0.75rem;
+}
+
+.mes-header {
+    background: var(--bg-secondary) !important;
+    font-weight: bold;
+    font-size: 0.85rem;
+    padding: 6px !important;
+    text-align: center !important;
+}
+
+/* Inputs generales del panel (Sidebar) */
 .sidebar h3 {
     font-size: 0.85rem;
-    margin: 20px 0 10px 0;
+    margin: 15px 0 8px 0;
     color: var(--text-muted);
     text-transform: uppercase;
     font-weight: 600;
 }
 
-input[type="text"],
-input[type="date"],
-select {
+.sidebar input[type="text"],
+.sidebar input[type="date"],
+.sidebar input[type="number"],
+.sidebar select {
     width: 100%;
-    padding: 10px;
-    margin-bottom: 12px;
+    padding: 6px;
+    margin-bottom: 8px;
     border: 1px solid var(--border);
     border-radius: 3px;
     background: var(--bg);
     color: var(--accent);
-    /* Color de "valor" */
     font-family: var(--code-font);
+    font-size: 0.8rem;
     box-sizing: border-box;
     outline: none;
-}
-
-input:focus {
-    border-color: var(--primary);
 }
 
 /* Lista de participantes */
 .participant-list {
     list-style: none;
     padding: 0;
+    margin: 0;
 }
 
 .participant-list li {
-    padding: 6px 10px;
+    padding: 4px 8px;
     border-left: 3px solid var(--primary);
-    /* Estilo línea activa */
     margin-bottom: 4px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: var(--card-accent);
-    font-size: 0.85rem;
-}
-
-li div {
-    margin-right: 5px;
-}
-
-li span {
-    margin-left: 5px;
+    font-size: 0.8rem;
 }
 
 li button {
@@ -199,7 +227,7 @@ li button {
     color: var(--text-muted);
     cursor: pointer;
     font-size: 1rem;
-    padding: 0;
+    padding: 0 4px;
 }
 
 li button:hover {
@@ -209,7 +237,8 @@ li button:hover {
 /* Botones */
 button {
     font-family: var(--code-font);
-    padding: 8px 15px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
     border-radius: 3px;
     border: 1px solid var(--border);
     background: var(--card-accent);
@@ -223,23 +252,31 @@ button:hover {
     border-color: var(--primary);
 }
 
+.btn-add {
+    background: var(--card-accent);
+    width: 100%;
+    margin-bottom: 10px;
+}
+
 .btn-export {
-    margin-top: 20px;
+    margin-top: 15px;
     width: 100%;
     background: var(--primary);
     color: #fff;
     font-weight: bold;
     border: none;
     text-transform: uppercase;
+    padding: 10px;
 }
 
 .btn-tool {
-    width: 35px;
-    height: 35px;
+    width: 24px;
+    height: 24px;
     padding: 0;
     display: flex;
     justify-content: center;
     align-items: center;
+    font-size: 0.8rem;
 }
 
 /* Modal */
@@ -259,13 +296,21 @@ button:hover {
 
 .modal-content {
     background-color: var(--card-bg);
-    color: var(--text-main);
-    padding: 25px;
+    padding: 20px;
     border: 1px solid var(--primary);
     border-radius: 4px;
     width: 90%;
     max-width: 500px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.close-button {
+    float: right;
+    font-size: 1.5rem;
+    cursor: pointer;
+    font-weight: bold;
+    line-height: 1;
+    margin-top: -5px;
 }
 
 /* Responsividad */
@@ -281,28 +326,7 @@ button:hover {
     }
 }
 
-/* --- LÓGICA DE OCULTACIÓN (Añadir al final del CSS) --- */
-
-/* --- LÓGICA DE TRANSICIÓN --- */
-
-.main-layout {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
-    /* Efecto suave */
-}
-
-.sidebar {
-    flex: 0 0 320px;
-    width: 320px;
-    /* ... tus estilos actuales ... */
-    transition: all 0.3s ease;
-    opacity: 1;
-    visibility: visible;
-}
-
-/* Estado oculto con animación */
+/* Ocultar Panel */
 .main-layout.sidebar-hidden {
     gap: 0;
 }
@@ -323,8 +347,66 @@ button:hover {
     width: 100%;
 }
 
-/* Estilo para el botón activo */
 .sidebar-hidden-active {
     background: var(--primary) !important;
     color: #ffffff !important;
+}
+
+/* Etiquetas de Participantes */
+.participant-row {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.participant-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3px;
+}
+
+.participant-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+.tag-btn {
+    font-size: 0.65rem;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.tag-btn.active {
+    background-color: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.tag-btn:hover {
+    opacity: 0.7;
+}
+
+.modal-tag-list {
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.modal-tag-item {
+    background: var(--bg-secondary);
+    padding: 8px;
+    margin-bottom: 5px;
+    border-radius: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
 }
