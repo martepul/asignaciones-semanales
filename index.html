@@ -51,6 +51,45 @@
                     <tbody id="cuerpoTabla"></tbody>
                 </table>
             </div>
+            <div class="export-controls"
+                style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <div class="control-group">
+                    <label for="pdfTitle" style="display: block; font-size: 0.8rem; color: var(--text-muted);">Título
+                        Principal:</label>
+                    <input type="text" id="pdfTitle" placeholder="Ej: Programa de Micrófonos"
+                        style="padding: 6px; border: 1px solid var(--border); border-radius: 4px;">
+                </div>
+
+                <div class="control-group">
+                    <label for="pdfSubtitle"
+                        style="display: block; font-size: 0.8rem; color: var(--text-muted);">Subtítulo/Descripción:</label>
+                    <input type="text" id="pdfSubtitle" placeholder="Ej: Marzo - Abril 2024"
+                        style="padding: 6px; border: 1px solid var(--border); border-radius: 4px;">
+                </div>
+
+                <div class="control-group">
+                    <label for="pdfStyle" style="display: block; font-size: 0.8rem; color: var(--text-muted);">Estilo
+                        Visual:</label>
+                    <select id="pdfStyle" style="padding: 6px; border: 1px solid var(--border); border-radius: 4px;">
+                        <optgroup label="Básicos">
+                            <option value="moderno">Moderno (Azul Slate)</option>
+                            <option value="clasico">Clásico (Impresión B/N)</option>
+                            <option value="minimalista">Minimalista (Limpio)</option>
+                            <option value="corporativo">Corporativo (Azul Marino)</option>
+                        </optgroup>
+                        <optgroup label="Temáticos">
+                            <option value="oscuro">Modo Noche (Dark)</option>
+                            <option value="bosque">Naturaleza (Verde)</option>
+                            <option value="oceano">Océano (Turquesa)</option>
+                            <option value="vintage">Vintage (Sepia/Marrón)</option>
+                            <option value="elegante">Elegante (Vino y Oro)</option>
+                            <option value="industrial">Industrial (Gris y Naranja)</option>
+                            <option value="pastel">Dulce (Pastel)</option>
+                            <option value="energetico">Energético (Amarillo y Negro)</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
             <button class="btn-export" onclick="exportarPDF()">📄 DESCARGAR PDF</button>
         </div>
 
