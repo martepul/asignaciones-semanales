@@ -653,20 +653,45 @@ function exportarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
 
+    // 1. OBTENER VALORES (con protecciones por si no existen los elementos)
+    const tituloPrincipal = (document.getElementById('pdfTitle') ? document.getElementById('pdfTitle').value : 'PROGRAMA') || 'PROGRAMA';
+    const subtituloPersonalizado = document.getElementById('pdfSubtitle') ? document.getElementById('pdfSubtitle').value : '';
+    const estiloElegido = (document.getElementById('pdfStyle') ? document.getElementById('pdfStyle').value : 'moderno') || 'moderno';
+
+    // 2. DICCIONARIO DE TEMAS SEGURO
+    const temas = {
+        moderno: { primary: [45, 69, 97], secondary: [245, 248, 250], text: [30, 30, 30], table: 'grid', accent: true },
+        clasico: { primary: [0, 0, 0], secondary: [240, 240, 240], text: [0, 0, 0], table: 'striped', accent: false },
+        minimalista: { primary: [60, 60, 60], secondary: [255, 255, 255], text: [40, 40, 40], table: 'plain', accent: false },
+        corporativo: { primary: [0, 51, 102], secondary: [232, 241, 250], text: [20, 20, 20], table: 'grid', accent: true },
+        oscuro: { primary: [40, 40, 40], secondary: [60, 60, 60], text: [50, 50, 50], table: 'grid', accent: true },
+        bosque: { primary: [34, 94, 34], secondary: [240, 248, 240], text: [20, 40, 20], table: 'striped', accent: true },
+        oceano: { primary: [0, 105, 148], secondary: [230, 245, 250], text: [0, 50, 70], table: 'grid', accent: true },
+        vintage: { primary: [101, 67, 33], secondary: [245, 235, 215], text: [60, 30, 10], table: 'striped', accent: true },
+        elegante: { primary: [88, 24, 31], secondary: [252, 248, 240], text: [50, 10, 10], table: 'grid', accent: true },
+        industrial: { primary: [50, 50, 50], secondary: [230, 230, 230], text: [30, 30, 30], table: 'grid', accent: true, line: [255, 102, 0] },
+        pastel: { primary: [180, 140, 200], secondary: [255, 250, 255], text: [100, 80, 120], table: 'striped', accent: true },
+        energetico: { primary: [255, 204, 0], secondary: [255, 252, 230], text: [0, 0, 0], table: 'grid', accent: true, headerText: [0, 0, 0] }
+    };
+
+    const config = temas[estiloElegido] || temas.moderno;
+
+    // 3. PREPARAR DATOS
     const rolesPlano = [];
     columnasElegidas.forEach(col => {
         for (let i = 0; i < col.cantidad; i++) rolesPlano.push(`${col.id}_${i}`);
     });
 
     if (rolesPlano.length === 0) {
-        alert("Selecciona al menos una columna antes de exportar.");
+        alert("Selecciona al menos una columna.");
         return;
     }
 
-    const head = [[{ content: 'Día', styles: { halign: 'left' } }]];
+    const head = [[{ content: 'DÍA', styles: { halign: 'center' } }]];
     columnasElegidas.forEach(col => {
-        head[0].push({ content: col.label, colSpan: col.cantidad, styles: { halign: 'left' } });
+        head[0].push({ content: col.label.toUpperCase(), colSpan: col.cantidad, styles: { halign: 'center' } });
     });
 
     const fechas = generarFechas();
@@ -679,66 +704,109 @@ function exportarPDF() {
 
     let currentY = 20;
 
-    Object.keys(meses).forEach((nombreMes) => {
-        const pdfTitle = document.getElementById('pdfTitle').value || 'Asignaciones';
-        doc.setFont("helvetica", "normal").setTextColor(40, 40, 40).setFontSize(10);
-        doc.text(pdfTitle.toUpperCase(), 15, currentY);
-        doc.setFont("helvetica", "bold").setFontSize(14).text("Asignaciones semanales", 15, currentY + 6);
-        doc.setDrawColor(200, 200, 200).setLineWidth(0.2).line(15, currentY + 10, pageWidth - 15, currentY + 10);
+    // 4. GENERACIÓN POR MES
+    Object.keys(meses).forEach((nombreMes, index) => {
+        if (index > 0 && currentY > pageHeight - 60) {
+            doc.addPage();
+            currentY = 20;
+        }
 
-        currentY += 20;
-        doc.setFontSize(10).setFont("helvetica", "normal").setTextColor(100, 100, 100).text(nombreMes.toUpperCase(), 15, currentY);
+        // Encabezado principal
+        if (index === 0 || currentY === 20) {
+            if (config.accent) {
+                doc.setFillColor(...(config.line || config.primary));
+                doc.rect(14, currentY - 6, 1.5, 12, 'F');
+            }
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(...config.text);
+            doc.setFontSize(16);
+            doc.text(tituloPrincipal.toUpperCase(), (config.accent ? 18 : 14), currentY);
+
+            if (subtituloPersonalizado) {
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(100, 100, 100);
+                doc.setFontSize(9);
+                doc.text(subtituloPersonalizado, (config.accent ? 18 : 14), currentY + 6);
+                currentY += 18;
+            } else {
+                currentY += 12;
+            }
+        }
+
+        // Separador de Mes
+        doc.setFillColor(...config.secondary);
+        doc.rect(14, currentY, pageWidth - 28, 8, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...(estiloElegido === 'clasico' ? [0, 0, 0] : config.primary));
+        doc.setFontSize(10);
+        doc.text(nombreMes.toUpperCase(), 18, currentY + 5.5);
+        currentY += 10;
 
         const bodyMes = [];
         meses[nombreMes].forEach(f => {
             const id = f.toISOString().split('T')[0];
-            const diaStr = f.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit' }).replace('.', '');
-            const esSabadoODomingo = f.getDay() === 6 || f.getDay() === 0;
-            const esMartes = f.getDay() === 2;
+            const diaStr = f.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit' }).replace('.', '').toUpperCase();
+            const esFinde = f.getDay() === 6 || f.getDay() === 0;
+            const colorFila = esFinde ? config.secondary : [255, 255, 255];
 
-            const filaAsignacion = [{ content: diaStr, metaColor: esSabadoODomingo ? [245, 242, 235] : (esMartes ? [235, 244, 250] : [255, 255, 255]) }];
+            const fila = [{
+                content: diaStr,
+                styles: { fontStyle: 'bold', fillColor: colorFila, textColor: [50, 50, 50], halign: 'center' }
+            }];
+
             rolesPlano.forEach(rol => {
-                filaAsignacion.push(manuales[id]?.[rol] || asignaciones[id]?.[rol] || "-");
+                fila.push({
+                    content: manuales[id]?.[rol] || asignaciones[id]?.[rol] || "-",
+                    styles: { fillColor: colorFila }
+                });
             });
-            bodyMes.push(filaAsignacion);
+            bodyMes.push(fila);
 
-            // SOLO INCLUIR EXTRAS SI LA OPCIÓN ESTÁ MARCADA
-            if (incluirExtrasSabado && esSabadoODomingo) {
-                const datosSabado = sabadoData[id];
-                if (datosSabado && Object.keys(datosSabado).length > 0) {
-                    const sabadoContent = `Conferenciante: ${datosSabado.conferenciante || '-'} | N° de Bosquejo: ${datosSabado.bosquejo || '-'} | Tema: ${datosSabado.tema || '-'} | Hospitalidad: ${datosSabado.hospitalidad || '-'}`;
-                    bodyMes.push([{ content: sabadoContent, colSpan: rolesPlano.length + 1, metaColor: [220, 217, 210], isInfo: true }]);
-                }
-            }
-
-            if (esMartes || esSabadoODomingo) {
-                bodyMes.push([{ content: '', colSpan: rolesPlano.length + 1, metaColor: [255, 255, 255], isSpace: true }]);
+            if (incluirExtrasSabado && esFinde && sabadoData[id]) {
+                const s = sabadoData[id];
+                const info = `Conf: ${s.conferenciante || '-'}  |  Tema: ${s.tema || '-'}  |  Hosp: ${s.hospitalidad || '-'}`;
+                bodyMes.push([{
+                    content: info,
+                    colSpan: rolesPlano.length + 1,
+                    styles: { fontSize: 7, fontStyle: 'italic', textColor: [100, 100, 100], halign: 'center', fillColor: colorFila, cellPadding: 2 }
+                }]);
             }
         });
 
+        // Dibujar Tabla
         doc.autoTable({
             head: head,
             body: bodyMes,
-            startY: currentY + 4,
-            theme: 'plain',
-            styles: { fontSize: rolesPlano.length > 5 ? 7 : 8, cellPadding: 2.5, textColor: [70, 70, 70] },
-            headStyles: { fillColor: [255, 255, 255], textColor: [20, 20, 20], fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: false },
-            margin: { left: 15, right: 15 },
-            didParseCell: function (data) {
-                const rawCell = data.row.raw[0];
-                if (data.section === 'body' && rawCell && rawCell.metaColor) {
-                    data.cell.styles.fillColor = rawCell.metaColor;
-                    if (rawCell.isInfo) data.cell.styles.fontSize = 7;
-                    if (rawCell.isSpace) data.cell.styles.cellPadding = { top: 0.65, bottom: 0.65 };
-                }
+            startY: currentY,
+            theme: config.table,
+            styles: {
+                fontSize: rolesPlano.length > 5 ? 7 : 8,
+                cellPadding: 3,
+                lineColor: [220, 220, 220],
+                lineWidth: 0.1 // Grosor de línea numérico (más compatible)
             },
-            didDrawPage: (data) => { currentY = data.cursor.y + 15; }
+            headStyles: {
+                fillColor: estiloElegido === 'minimalista' ? [255, 255, 255] : config.primary,
+                textColor: config.headerText || (estiloElegido === 'minimalista' ? [0, 0, 0] : [255, 255, 255]),
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (data) => {
+                // Pie de página manual para evitar errores de encadenamiento
+                const pageCount = doc.internal.getNumberOfPages();
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text("Página " + pageCount, pageWidth / 2, pageHeight - 10, { align: 'center' });
+            }
         });
+
         currentY = doc.lastAutoTable.finalY + 15;
     });
 
-    doc.save(`Asignaciones_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`);
+    // Guardar con el nombre del título
+    const nombreArchivo = tituloPrincipal.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    doc.save(`${nombreArchivo}.pdf`);
 }
 
 function abrirModalLimpiezaManual() {
