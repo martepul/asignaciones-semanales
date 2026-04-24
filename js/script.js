@@ -655,7 +655,7 @@ function exportarPDF() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // 1. OBTENER VALORES (con protecciones por si no existen los elementos)
+    // 1. OBTENER VALORES
     const tituloPrincipal = (document.getElementById('pdfTitle') ? document.getElementById('pdfTitle').value : 'PROGRAMA') || 'PROGRAMA';
     const subtituloPersonalizado = document.getElementById('pdfSubtitle') ? document.getElementById('pdfSubtitle').value : '';
     const estiloElegido = (document.getElementById('pdfStyle') ? document.getElementById('pdfStyle').value : 'moderno') || 'moderno';
@@ -743,32 +743,70 @@ function exportarPDF() {
         currentY += 10;
 
         const bodyMes = [];
-        meses[nombreMes].forEach(f => {
+        meses[nombreMes].forEach((f, i) => { // Agregamos el index "i" para rastrear la iteración
             const id = f.toISOString().split('T')[0];
             const diaStr = f.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit' }).replace('.', '').toUpperCase();
             const esFinde = f.getDay() === 6 || f.getDay() === 0;
             const colorFila = esFinde ? config.secondary : [255, 255, 255];
 
+            const hasExtraRow = incluirExtrasSabado && esFinde && sabadoData[id];
+
+            // Los bordes encierran la fila como un bloque. Si hay fila extra, le quitamos el borde inferior.
+            const mainLineWidth = hasExtraRow ? { top: 0.1, bottom: 0, left: 0.1, right: 0.1 } : { top: 0.1, bottom: 0.1, left: 0.1, right: 0.1 };
+
             const fila = [{
                 content: diaStr,
-                styles: { fontStyle: 'bold', fillColor: colorFila, textColor: [50, 50, 50], halign: 'center' }
+                styles: {
+                    fontStyle: 'bold',
+                    fillColor: colorFila,
+                    textColor: [50, 50, 50],
+                    halign: 'center',
+                    lineWidth: mainLineWidth
+                }
             }];
 
             rolesPlano.forEach(rol => {
                 fila.push({
                     content: manuales[id]?.[rol] || asignaciones[id]?.[rol] || "-",
-                    styles: { fillColor: colorFila }
+                    styles: {
+                        fillColor: colorFila,
+                        lineWidth: mainLineWidth
+                    }
                 });
             });
             bodyMes.push(fila);
 
-            if (incluirExtrasSabado && esFinde && sabadoData[id]) {
+            if (hasExtraRow) {
                 const s = sabadoData[id];
-                const info = `Conf: ${s.conferenciante || '-'}  |  Tema: ${s.tema || '-'}  |  Hosp: ${s.hospitalidad || '-'}`;
+                const info = `Conferenciante: ${s.conferenciante || '-'}   •   Bosquejo: N° ${s.bosquejo || '-'}   •   Tema: ${s.tema || '-'}   •   Hospitalidad: ${s.hospitalidad || '-'}`;
+
                 bodyMes.push([{
                     content: info,
                     colSpan: rolesPlano.length + 1,
-                    styles: { fontSize: 7, fontStyle: 'italic', textColor: [100, 100, 100], halign: 'center', fillColor: colorFila, cellPadding: 2 }
+                    styles: {
+                        fontSize: 7.5,
+                        fontStyle: 'normal',
+                        textColor: config.text,
+                        halign: 'left',
+                        fillColor: colorFila,
+                        cellPadding: { top: 4, bottom: 4, left: 2, right: 2 },
+                        lineWidth: { top: 0.1, bottom: 0.1, left: 0.1, right: 0.1 } // Se conecta a la fila de arriba
+                    }
+                }]);
+            }
+
+            // --- ESPACIO FÍSICO ENTRE DÍAS ---
+            // Si NO es el último día del mes, inyectamos una fila vacía y transparente
+            if (i < meses[nombreMes].length - 1) {
+                bodyMes.push([{
+                    content: '',
+                    colSpan: rolesPlano.length + 1,
+                    styles: {
+                        minCellHeight: 2, // 2 milímetros de altura de espacio vacío
+                        fillColor: [255, 255, 255], // Fondo blanco
+                        lineWidth: 0, // Cero bordes, hace que la separación sea invisible
+                        cellPadding: 0
+                    }
                 }]);
             }
         });
@@ -782,18 +820,18 @@ function exportarPDF() {
             styles: {
                 fontSize: rolesPlano.length > 5 ? 7 : 8,
                 cellPadding: 3,
-                lineColor: [220, 220, 220],
-                lineWidth: 0.1 // Grosor de línea numérico (más compatible)
+                lineColor: [200, 200, 200],
+                lineWidth: 0.1
             },
             headStyles: {
                 fillColor: estiloElegido === 'minimalista' ? [255, 255, 255] : config.primary,
                 textColor: config.headerText || (estiloElegido === 'minimalista' ? [0, 0, 0] : [255, 255, 255]),
                 fontStyle: 'bold',
-                halign: 'center'
+                halign: 'center',
+                lineWidth: 0.1
             },
             margin: { left: 14, right: 14 },
             didDrawPage: (data) => {
-                // Pie de página manual para evitar errores de encadenamiento
                 const pageCount = doc.internal.getNumberOfPages();
                 doc.setFontSize(8);
                 doc.setTextColor(150, 150, 150);
@@ -801,7 +839,8 @@ function exportarPDF() {
             }
         });
 
-        currentY = doc.lastAutoTable.finalY + 15;
+        // ESPACIO REDUCIDO ENTRE MESES: Cambiado de 15 a 6
+        currentY = doc.lastAutoTable.finalY + 6;
     });
 
     // Guardar con el nombre del título
@@ -818,7 +857,6 @@ function abrirModalLimpiezaManual() {
     const rolesConAsignacionesManuales = new Set();
     Object.values(manuales).forEach(dia => {
         Object.keys(dia).forEach(rolCompleto => {
-            // CORRECCIÓN: Usar lastIndexOf para detectar correctamente la columna
             const rb = rolCompleto.substring(0, rolCompleto.lastIndexOf('_'));
             if (rb) rolesConAsignacionesManuales.add(rb);
         });
@@ -850,7 +888,6 @@ function ejecutarLimpiezaManualModal() {
 
     Object.keys(manuales).forEach(idFecha => {
         Object.keys(manuales[idFecha]).forEach(rolUnico => {
-            // CORRECCIÓN: Obtener el nombre de columna base correctamente
             const rolBase = rolUnico.substring(0, rolUnico.lastIndexOf('_'));
             if (seleccionados.includes(rolBase)) delete manuales[idFecha][rolUnico];
         });
