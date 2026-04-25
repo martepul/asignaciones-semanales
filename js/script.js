@@ -48,6 +48,30 @@ let asignaciones = {};
 let columnasElegidas = JSON.parse(localStorage.getItem('columnasElegidas_v1')) || [];
 let listaBosquejos = JSON.parse(localStorage.getItem('listaBosquejos_v1')) || [];
 
+// --- DICCIONARIO DE CATEGORÍAS DE BOSQUEJOS ---
+const CATEGORIAS_BOSQUEJOS = {
+    "Biblia/Dios": [4, 26, 37, 54, 63, 70, 76, 80, 88, 99, 101, 114, 124, 133, 134, 139, 145, 164, 169, 175, 187],
+    "Evangelización/Ministerio": [17, 66, 81],
+    "Familia/Jóvenes": [5, 13, 27, 28, 29, 30, 104, 110, 113, 118, 146, 190],
+    "Fe/Espiritualidad": [1, 9, 16, 18, 22, 31, 44, 46, 60, 67, 71, 74, 87, 142, 147, 148, 151, 158, 159, 168, 172, 173, 189, 192],
+    "Mundo, No ser parte del": [11, 25, 33, 39, 51, 53, 59, 64, 79, 97, 107, 115, 116, 119, 123, 131, 138, 160, 167, 178, 179, 183, 191],
+    "Normas y cualidades cristianas": [7, 10, 12, 14, 15, 42, 48, 68, 69, 72, 75, 77, 78, 100, 103, 112, 144, 156, 157, 165, 171, 185],
+    "Pruebas/Problemas": [32, 50, 57, 65, 73, 93, 105, 108, 117, 141, 143, 177, 184, 186, 194],
+    "Reino/Paraíso": [19, 21, 23, 24, 35, 47, 49, 61, 62, 85, 90, 91, 109, 111, 120, 122, 130, 132, 154, 162, 170, 174, 180, 182],
+    "Religión/Adoración": [3, 8, 36, 43, 45, 52, 55, 56, 58, 82, 83, 86, 89, 92, 94, 95, 96, 125, 126, 127, 128, 129, 135, 136, 137, 140, 149, 161, 163, 166, 188],
+    "Últimos días/Juicio de Dios": [2, 6, 20, 34, 38, 40, 41, 84, 98, 102, 106, 121, 150, 152, 153, 155, 176, 181, 193]
+};
+
+function obtenerCategoriaBosquejo(numeroStr) {
+    const num = parseInt(numeroStr);
+    for (const [categoria, numeros] of Object.entries(CATEGORIAS_BOSQUEJOS)) {
+        if (numeros.includes(num)) {
+            return categoria;
+        }
+    }
+    return "Otros"; // Por si añades un bosquejo especial o un número nuevo
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     applyTheme();
 
@@ -103,6 +127,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // Cargar Eventos para Importar Archivos (Asegúrate de tener estos inputs en tu HTML)
+    const fileParticipantes = document.getElementById('fileParticipantes');
+    if (fileParticipantes) fileParticipantes.addEventListener('change', (e) => importarDesdeArchivo(e, 'participante'));
+
+    const fileBosquejos = document.getElementById('fileBosquejos');
+    if (fileBosquejos) fileBosquejos.addEventListener('change', (e) => importarDesdeArchivo(e, 'bosquejo'));
 
     ajustarPorComboDias();
 });
@@ -245,6 +276,69 @@ function guardarParticipantes() {
     localStorage.setItem('participantesData_v2', JSON.stringify(participantesData));
 }
 
+// --- LOGICA DE IMPORTACIÓN MULTI-VALOR ---
+
+function importarDesdeArchivo(evento, tipo) {
+    const archivo = evento.target.files[0];
+    if (!archivo) return;
+
+    const lector = new FileReader();
+    lector.onload = function (e) {
+        const contenido = e.target.result;
+        const lineas = contenido.split(/\r?\n/);
+        let agregados = 0;
+
+        lineas.forEach(linea => {
+            const lineaLimpia = linea.trim();
+            if (lineaLimpia === "") return;
+
+            if (tipo === 'participante') {
+                const partes = lineaLimpia.split(',').map(p => p.trim()).filter(p => p !== "");
+                const nombre = partes[0];
+                if (nombre && !participantesData.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
+                    participantesData.push({ nombre: nombre, tags: [] });
+                    agregados++;
+                }
+            }
+            else if (tipo === 'bosquejo') {
+                // Lógica para detectar "N° 26, ¿Le importamos a Dios?" o similares
+                const partes = lineaLimpia.split(',');
+                if (partes.length >= 2) {
+                    // Extraer solo los números de la primera parte (Ej: "N° 26" -> "26")
+                    const numStr = partes[0].replace(/[^0-9]/g, '');
+                    // Unir el resto en caso de que el tema contenga comas
+                    const temaStr = partes.slice(1).join(',').trim();
+
+                    if (numStr && temaStr) {
+                        if (!listaBosquejos.some(b => b.numero === numStr)) {
+                            listaBosquejos.push({ numero: numStr, tema: temaStr });
+                            agregados++;
+                        }
+                    }
+                }
+            }
+        });
+
+        if (agregados > 0) {
+            if (tipo === 'participante') {
+                participantesData.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                guardarParticipantes();
+                actualizarVistaParticipantes();
+            } else if (tipo === 'bosquejo') {
+                listaBosquejos.sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
+                localStorage.setItem('listaBosquejos_v1', JSON.stringify(listaBosquejos));
+                actualizarVistaBosquejos();
+            }
+            actualizarTodo();
+            alert(`¡Éxito! Se procesaron y añadieron ${agregados} elementos.`);
+        } else {
+            alert("No se añadieron elementos nuevos. Es posible que ya existan o el formato no sea válido.");
+        }
+        evento.target.value = ""; // Limpiar input file
+    };
+    lector.readAsText(archivo);
+}
+
 // --- LOGICA DE ETIQUETAS (MODAL) ---
 
 function abrirModalEtiquetas() {
@@ -322,14 +416,54 @@ function eliminarEtiqueta(idx) {
 function actualizarVistaBosquejos() {
     const listaUL = document.getElementById('listaBosquejos');
     if (!listaUL) return;
-    listaUL.innerHTML = listaBosquejos.map((b, idx) => `
-        <li style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border)">
-            <span style="font-size: 0.8em;"><b>N° ${b.numero}</b>: ${b.tema}</span>
-            <div>
-                <button onclick="editarBosquejo(${idx})">✎</button>
-                <button onclick="eliminarBosquejo(${idx})">×</button>
-            </div>
-        </li>`).join('');
+
+    listaUL.innerHTML = ''; // Limpiar la lista
+
+    // 1. Agrupar los bosquejos importados/añadidos por categoría
+    const grupos = {};
+    listaBosquejos.forEach((b, originalIndex) => {
+        const categoria = obtenerCategoriaBosquejo(b.numero);
+        if (!grupos[categoria]) grupos[categoria] = [];
+        // Guardamos el índice original para que los botones de editar/eliminar funcionen perfecto
+        grupos[categoria].push({ ...b, originalIndex });
+    });
+
+    // 2. Ordenar las categorías para que se vean estructuradas
+    const categoriasOrdenadas = Object.keys(CATEGORIAS_BOSQUEJOS).concat(["Otros"]);
+
+    let html = '';
+
+    categoriasOrdenadas.forEach(cat => {
+        if (grupos[cat] && grupos[cat].length > 0) {
+            // Creamos un desplegable (<details>) para cada categoría
+            html += `
+            <li style="display:block; padding: 0; border: none; margin-bottom: 5px;">
+                <details style="border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); overflow: hidden;">
+                    <summary style="font-size: 0.85rem; font-weight: bold; cursor: pointer; padding: 8px; list-style-position: inside; color: var(--primary);">
+                        📋 ${cat} (${grupos[cat].length})
+                    </summary>
+                    <ul style="list-style: none; padding: 0; margin: 0; background: var(--bg-main);">
+            `;
+
+            // Añadimos los bosquejos de esta categoría
+            grupos[cat].forEach(b => {
+                html += `
+                    <li style="display:flex; justify-content:space-between; align-items:center; padding: 6px 10px; border-top:1px solid var(--border);">
+                        <span style="font-size: 0.8em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 75%;" title="${b.tema}">
+                            <b>N° ${b.numero}</b>: ${b.tema}
+                        </span>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="btn-theme" style="padding: 2px 6px; font-size: 0.75rem;" onclick="editarBosquejo(${b.originalIndex})">✎</button>
+                            <button class="btn-cancel" style="padding: 2px 6px; font-size: 0.75rem;" onclick="eliminarBosquejo(${b.originalIndex})">×</button>
+                        </div>
+                    </li>`;
+            });
+
+            html += `</ul></details></li>`;
+        }
+    });
+
+    listaUL.innerHTML = html;
 }
 
 function agregarBosquejo() {
@@ -344,6 +478,7 @@ function agregarBosquejo() {
         const tema = prompt(`Introduce el TEMA para el bosquejo N° ${numero}:`);
         if (tema !== null && tema.trim() !== "") {
             listaBosquejos.push({ numero: numero, tema: tema.trim() });
+            listaBosquejos.sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
             localStorage.setItem('listaBosquejos_v1', JSON.stringify(listaBosquejos));
             inputNum.value = '';
             actualizarTodo();
@@ -358,6 +493,7 @@ function editarBosquejo(index) {
     const nuevoTema = prompt("Editar tema:", b.tema);
     if (nuevoTema === null) return;
     listaBosquejos[index] = { numero: nuevoNumero.trim(), tema: nuevoTema.trim() };
+    listaBosquejos.sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
     localStorage.setItem('listaBosquejos_v1', JSON.stringify(listaBosquejos));
     actualizarTodo();
 }
@@ -384,6 +520,7 @@ function seleccionarBosquejo(selectElement) {
         } else if (numeroSeleccionado === "") {
             inputTema.value = "";
         }
+        // Guardar el tema auto-rellenado también
         guardarDatoSabado(inputTema);
     }
 }
@@ -446,7 +583,6 @@ function asignarFila(id) {
 
     rolesPlano.forEach(rolUnico => {
         if (!manuales[id]?.[rolUnico]) {
-            // CORRECCIÓN: Usar lastIndexOf para manejar guiones bajos en el nombre de la columna
             const rolBase = rolUnico.substring(0, rolUnico.lastIndexOf('_'));
             const candidatos = obtenerHabilitadosParaRol(rolBase).filter(nombre => !yaAsignadosHoy.includes(nombre));
 
@@ -589,7 +725,6 @@ function actualizarTodo() {
 
         let celdas = rolesPlano.map(rol => {
             const valor = manuales[id]?.[rol] || asignaciones[id]?.[rol] || "";
-            // CORRECCIÓN: Obtener el nombre de columna base correctamente
             const rolBase = rol.substring(0, rol.lastIndexOf('_'));
             const listaParaRol = obtenerHabilitadosParaRol(rolBase);
 
@@ -627,10 +762,10 @@ function actualizarTodo() {
                             <input type="text" placeholder="Nombre..." value="${datosSabado.conferenciante || ''}" data-fecha-id="${id}" data-sabado-rol="conferenciante" onchange="guardarDatoSabado(this)">
                         </div>
                         <div>
-                            <span style="font-size: 0.7rem; font-weight: bold; display: block; margin-bottom: 1px; color: var(--primary);">N° Bosquejo</span>
+                            <span style="font-size: 0.7rem; font-weight: bold; display: block; margin-bottom: 1px; color: var(--primary);">Bosquejo</span>
                             <select data-fecha-id="${id}" data-sabado-rol="bosquejo" onchange="seleccionarBosquejo(this)">
                                 <option value="">-- Elegir --</option>
-                                ${listaBosquejos.map(b => `<option value="${b.numero}" ${datosSabado.bosquejo === b.numero ? 'selected' : ''}>${b.numero}</option>`).join('')}
+                                ${listaBosquejos.map(b => `<option value="${b.numero}" ${datosSabado.bosquejo === b.numero ? 'selected' : ''}>N° ${b.numero} - ${b.tema.length > 25 ? b.tema.substring(0, 25) + '...' : b.tema}</option>`).join('')}
                             </select>
                         </div>
                         <div>
@@ -743,7 +878,7 @@ function exportarPDF() {
         currentY += 10;
 
         const bodyMes = [];
-        meses[nombreMes].forEach((f, i) => { // Agregamos el index "i" para rastrear la iteración
+        meses[nombreMes].forEach((f, i) => {
             const id = f.toISOString().split('T')[0];
             const diaStr = f.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit' }).replace('.', '').toUpperCase();
             const esFinde = f.getDay() === 6 || f.getDay() === 0;
@@ -751,7 +886,6 @@ function exportarPDF() {
 
             const hasExtraRow = incluirExtrasSabado && esFinde && sabadoData[id];
 
-            // Los bordes encierran la fila como un bloque. Si hay fila extra, le quitamos el borde inferior.
             const mainLineWidth = hasExtraRow ? { top: 0.1, bottom: 0, left: 0.1, right: 0.1 } : { top: 0.1, bottom: 0.1, left: 0.1, right: 0.1 };
 
             const fila = [{
@@ -790,28 +924,25 @@ function exportarPDF() {
                         halign: 'left',
                         fillColor: colorFila,
                         cellPadding: { top: 4, bottom: 4, left: 2, right: 2 },
-                        lineWidth: { top: 0.1, bottom: 0.1, left: 0.1, right: 0.1 } // Se conecta a la fila de arriba
+                        lineWidth: { top: 0.1, bottom: 0.1, left: 0.1, right: 0.1 }
                     }
                 }]);
             }
 
-            // --- ESPACIO FÍSICO ENTRE DÍAS ---
-            // Si NO es el último día del mes, inyectamos una fila vacía y transparente
             if (i < meses[nombreMes].length - 1) {
                 bodyMes.push([{
                     content: '',
                     colSpan: rolesPlano.length + 1,
                     styles: {
-                        minCellHeight: 2, // 2 milímetros de altura de espacio vacío
-                        fillColor: [255, 255, 255], // Fondo blanco
-                        lineWidth: 0, // Cero bordes, hace que la separación sea invisible
+                        minCellHeight: 2,
+                        fillColor: [255, 255, 255],
+                        lineWidth: 0,
                         cellPadding: 0
                     }
                 }]);
             }
         });
 
-        // Dibujar Tabla
         doc.autoTable({
             head: head,
             body: bodyMes,
@@ -839,11 +970,9 @@ function exportarPDF() {
             }
         });
 
-        // ESPACIO REDUCIDO ENTRE MESES: Cambiado de 15 a 6
         currentY = doc.lastAutoTable.finalY + 6;
     });
 
-    // Guardar con el nombre del título
     const nombreArchivo = tituloPrincipal.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     doc.save(`${nombreArchivo}.pdf`);
 }
