@@ -220,6 +220,12 @@
                 </div>
 
                 <div>
+                    <input type="file" id="fileParticipantes" accept=".txt, .csv" style="display:none">
+                    <button onclick="document.getElementById('fileParticipantes').click()">📂 Importar
+                        Participantes</button>
+                </div>
+
+                <div>
                     <div
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; margin-top: 15px;">
                         <h3 style="margin: 0;">Lista de Participantes</h3>
@@ -235,6 +241,11 @@
                 </div>
 
                 <div style="margin-top: 20px;">
+                    <div>
+                        <input type="file" id="fileBosquejos" accept=".txt, .csv" style="display:none">
+                        <button onclick="document.getElementById('fileBosquejos').click()">📂 Importar
+                            Bosquejos</button>
+                    </div>
                     <h3>Lista de Bosquejos</h3>
                     <div id="idcontenedorFpBosquejos">
                         <input type="text" id="nuevoBosquejoNum" placeholder="N° de bosquejo..."
